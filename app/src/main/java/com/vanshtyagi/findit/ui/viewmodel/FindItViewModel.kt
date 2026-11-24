@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vanshtyagi.findit.data.remote.ItemDto
 import com.vanshtyagi.findit.data.remote.SearchLostResponse
+import com.vanshtyagi.findit.data.remote.UserDto
 import com.vanshtyagi.findit.data.repository.FindItRepository
 import com.vanshtyagi.findit.data.util.ImageUtils
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +30,8 @@ data class FindItUiState(
     val reportSuccessMessage: String? = null,
     val searchResponse: SearchLostResponse? = null,
     val errorMessage: String? = null,
+    val userToken: String? = null,
+    val currentUser: UserDto? = null,
     val adminToken: String? = null,
     val adminStatusMessage: String? = null
 ) {
@@ -96,6 +99,7 @@ class FindItViewModel(
         contactInfo: String,
         color: String,
         brand: String,
+        description: String,
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
@@ -118,7 +122,8 @@ class FindItViewModel(
                     location = location,
                     contactInfo = contactInfo,
                     color = color,
-                    brand = brand
+                    brand = brand,
+                    description = description
                 ).onSuccess { resp ->
                     _uiState.update {
                         it.copy(
@@ -158,6 +163,7 @@ class FindItViewModel(
         location: String,
         color: String,
         brand: String,
+        description: String,
         onResultsReady: () -> Unit
     ) {
         viewModelScope.launch {
@@ -179,7 +185,8 @@ class FindItViewModel(
                     itemType = itemType,
                     location = location,
                     color = color,
-                    brand = brand
+                    brand = brand,
+                    description = description
                 ).onSuccess { resp ->
                     _uiState.update {
                         it.copy(isSubmitting = false, searchResponse = resp)
@@ -206,7 +213,65 @@ class FindItViewModel(
         }
     }
 
-    fun adminLogin(username: String, password: String) {
+    fun userLogin(email: String, password: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isSubmitting = true, loadingMessage = "Signing in...", errorMessage = null)
+            }
+            repository.userLogin(email, password)
+                .onSuccess { resp ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            userToken = resp.token,
+                            currentUser = resp.user
+                        )
+                    }
+                    onSuccess()
+                }
+                .onFailure { err ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            errorMessage = err.message ?: "Invalid email or password."
+                        )
+                    }
+                }
+        }
+    }
+
+    fun userRegister(name: String, email: String, password: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isSubmitting = true, loadingMessage = "Creating your account...", errorMessage = null)
+            }
+            repository.userRegister(name, email, password)
+                .onSuccess { resp ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            userToken = resp.token,
+                            currentUser = resp.user
+                        )
+                    }
+                    onSuccess()
+                }
+                .onFailure { err ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            errorMessage = err.message ?: "Could not create account."
+                        )
+                    }
+                }
+        }
+    }
+
+    fun userLogout() {
+        _uiState.update { it.copy(userToken = null, currentUser = null) }
+    }
+
+    fun adminLogin(username: String, password: String, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             _uiState.update {
                 it.copy(isSubmitting = true, loadingMessage = "Signing in...", errorMessage = null)
@@ -221,6 +286,7 @@ class FindItViewModel(
                         )
                     }
                     loadRecentFoundItems()
+                    onSuccess()
                 }
                 .onFailure { err ->
                     _uiState.update {

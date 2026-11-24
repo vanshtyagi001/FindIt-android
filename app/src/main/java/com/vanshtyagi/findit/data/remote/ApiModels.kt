@@ -73,6 +73,29 @@ data class AdminLoginResponse(
     @SerializedName("expires_in") val expiresIn: Int
 )
 
+data class UserDto(
+    val id: Int,
+    val name: String,
+    val email: String
+)
+
+data class UserLoginRequest(
+    val email: String,
+    val password: String
+)
+
+data class UserRegisterRequest(
+    val name: String,
+    val email: String,
+    val password: String
+)
+
+data class UserAuthResponse(
+    val token: String,
+    @SerializedName("expires_in") val expiresIn: Int,
+    val user: UserDto
+)
+
 data class MessageResponse(
     val message: String? = null,
     val error: String? = null

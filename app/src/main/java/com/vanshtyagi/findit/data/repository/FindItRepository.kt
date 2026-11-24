@@ -11,6 +11,9 @@ import com.vanshtyagi.findit.data.remote.MessageResponse
 import com.vanshtyagi.findit.data.remote.ReportFoundResponse
 import com.vanshtyagi.findit.data.remote.RetrofitClient
 import com.vanshtyagi.findit.data.remote.SearchLostResponse
+import com.vanshtyagi.findit.data.remote.UserAuthResponse
+import com.vanshtyagi.findit.data.remote.UserLoginRequest
+import com.vanshtyagi.findit.data.remote.UserRegisterRequest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -39,7 +42,8 @@ class FindItRepository(
         location: String,
         contactInfo: String,
         color: String?,
-        brand: String?
+        brand: String?,
+        description: String?
     ): Result<ReportFoundResponse> = safeCall {
         val imagePart = MultipartBody.Part.createFormData(
             "item_image",
@@ -52,7 +56,8 @@ class FindItRepository(
             location = location.trim().toRequestBody(textPlain),
             contactInfo = contactInfo.trim().toRequestBody(textPlain),
             color = color?.trim()?.takeIf { it.isNotEmpty() }?.toRequestBody(textPlain),
-            brand = brand?.trim()?.takeIf { it.isNotEmpty() }?.toRequestBody(textPlain)
+            brand = brand?.trim()?.takeIf { it.isNotEmpty() }?.toRequestBody(textPlain),
+            description = description?.trim()?.takeIf { it.isNotEmpty() }?.toRequestBody(textPlain)
         )
     }
 
@@ -61,7 +66,8 @@ class FindItRepository(
         itemType: String,
         location: String,
         color: String?,
-        brand: String?
+        brand: String?,
+        description: String?
     ): Result<SearchLostResponse> = safeCall {
         val imagePart = MultipartBody.Part.createFormData(
             "item_image",
@@ -73,8 +79,17 @@ class FindItRepository(
             itemType = itemType.trim().toRequestBody(textPlain),
             location = location.trim().toRequestBody(textPlain),
             color = color?.trim()?.takeIf { it.isNotEmpty() }?.toRequestBody(textPlain),
-            brand = brand?.trim()?.takeIf { it.isNotEmpty() }?.toRequestBody(textPlain)
+            brand = brand?.trim()?.takeIf { it.isNotEmpty() }?.toRequestBody(textPlain),
+            description = description?.trim()?.takeIf { it.isNotEmpty() }?.toRequestBody(textPlain)
         )
+    }
+
+    suspend fun userRegister(name: String, email: String, password: String): Result<UserAuthResponse> = safeCall {
+        api.userRegister(UserRegisterRequest(name.trim(), email.trim(), password))
+    }
+
+    suspend fun userLogin(email: String, password: String): Result<UserAuthResponse> = safeCall {
+        api.userLogin(UserLoginRequest(email.trim(), password))
     }
 
     suspend fun adminLogin(username: String, password: String): Result<AdminLoginResponse> = safeCall {

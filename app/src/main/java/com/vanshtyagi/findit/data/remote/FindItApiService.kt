@@ -34,7 +34,8 @@ interface FindItApiService {
         @Part("location") location: RequestBody,
         @Part("contact_info") contactInfo: RequestBody,
         @Part("color") color: RequestBody? = null,
-        @Part("brand") brand: RequestBody? = null
+        @Part("brand") brand: RequestBody? = null,
+        @Part("description") description: RequestBody? = null
     ): Response<ReportFoundResponse>
 
     @Multipart
@@ -44,8 +45,19 @@ interface FindItApiService {
         @Part("item_type") itemType: RequestBody,
         @Part("location") location: RequestBody,
         @Part("color") color: RequestBody? = null,
-        @Part("brand") brand: RequestBody? = null
+        @Part("brand") brand: RequestBody? = null,
+        @Part("description") description: RequestBody? = null
     ): Response<SearchLostResponse>
+
+    @POST("auth/register")
+    suspend fun userRegister(
+        @Body body: UserRegisterRequest
+    ): Response<UserAuthResponse>
+
+    @POST("auth/login")
+    suspend fun userLogin(
+        @Body body: UserLoginRequest
+    ): Response<UserAuthResponse>
 
     @POST("admin/login")
     suspend fun adminLogin(

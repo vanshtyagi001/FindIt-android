@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,6 +34,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.vanshtyagi.findit.ui.screens.AdminScreen
+import com.vanshtyagi.findit.ui.screens.AuthScreen
 import com.vanshtyagi.findit.ui.screens.HomeScreen
 import com.vanshtyagi.findit.ui.screens.ReportFoundScreen
 import com.vanshtyagi.findit.ui.screens.ResultsScreen
@@ -46,6 +48,7 @@ private object Routes {
     const val REPORT_FOUND = "report_found"
     const val SEARCH_LOST = "search_lost"
     const val RESULTS = "results"
+    const val AUTH = "auth"
     const val ADMIN = "admin"
     const val MY_ITEMS = "my_items"
     const val MESSAGES = "messages"
@@ -55,7 +58,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(FindItColors.DeepNavy.toArgb())
+            statusBarStyle = SystemBarStyle.dark(FindItColors.DeepNavy.toArgb()),
+            navigationBarStyle = SystemBarStyle.light(
+                android.graphics.Color.WHITE,
+                android.graphics.Color.WHITE
+            )
         )
         setContent {
             FindItTheme {
@@ -85,7 +92,11 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
                 },
                 onNavigateAdmin = {
                     viewModel.clearMessages()
-                    navController.navigate(Routes.ADMIN)
+                    if (uiState.adminToken != null) {
+                        navController.navigate(Routes.ADMIN)
+                    } else {
+                        navController.navigate(Routes.AUTH)
+                    }
                 },
                 onNavigateMyItems = {
                     navController.navigate(Routes.MY_ITEMS)
@@ -101,7 +112,7 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
             ReportFoundScreen(
                 uiState = uiState,
                 onBack = { navController.popBackStack() },
-                onSubmit = { uri, type, loc, contact, color, brand ->
+                onSubmit = { uri, type, loc, contact, color, brand, desc ->
                     viewModel.reportFound(
                         context = context,
                         imageUri = uri,
@@ -110,6 +121,7 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
                         contactInfo = contact,
                         color = color,
                         brand = brand,
+                        description = desc,
                         onSuccess = {
                             navController.popBackStack()
                         }
@@ -122,7 +134,7 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
             SearchLostScreen(
                 uiState = uiState,
                 onBack = { navController.popBackStack() },
-                onSearch = { uri, type, loc, color, brand ->
+                onSearch = { uri, type, loc, color, brand, desc ->
                     viewModel.searchLost(
                         context = context,
                         imageUri = uri,
@@ -130,6 +142,7 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
                         location = loc,
                         color = color,
                         brand = brand,
+                        description = desc,
                         onResultsReady = {
                             navController.navigate(Routes.RESULTS)
                         }
@@ -142,6 +155,36 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
             ResultsScreen(
                 searchResponse = uiState.searchResponse,
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.AUTH) {
+            AuthScreen(
+                uiState = uiState,
+                onBack = { navController.popBackStack() },
+                onUserLogin = { email, pass ->
+                    viewModel.userLogin(email, pass) {
+                        navController.popBackStack()
+                    }
+                },
+                onUserRegister = { name, email, pass ->
+                    viewModel.userRegister(name, email, pass) {
+                        navController.popBackStack()
+                    }
+                },
+                onUserLogout = { viewModel.userLogout() },
+                onAdminLogin = { user, pass ->
+                    viewModel.adminLogin(user, pass) {
+                        navController.navigate(Routes.ADMIN) {
+                            popUpTo(Routes.AUTH) { inclusive = true }
+                        }
+                    }
+                },
+                onOpenAdminPanel = {
+                    navController.navigate(Routes.ADMIN) {
+                        popUpTo(Routes.AUTH) { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -182,6 +225,7 @@ private fun PlaceholderTabScreen(
     onBack: () -> Unit
 ) {
     Scaffold(
+        containerColor = FindItColors.OffWhite,
         topBar = {
             TopAppBar(
                 title = { Text(title, fontWeight = FontWeight.Bold) },
@@ -189,7 +233,12 @@ private fun PlaceholderTabScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = FindItColors.DeepNavy,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         }
     ) { padding ->
