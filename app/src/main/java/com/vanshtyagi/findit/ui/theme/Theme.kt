@@ -16,6 +16,7 @@ object FindItColors {
     val FoundText = Color(0xFF15803D)
     val LostBg = Color(0xFFFEE2E2)
     val LostText = Color(0xFFB91C1C)
+    val RequiredRed = Color(0xFFEF4444)
 }
 
 private val LightColorScheme = lightColorScheme(

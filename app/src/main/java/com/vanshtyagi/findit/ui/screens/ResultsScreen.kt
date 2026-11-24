@@ -21,12 +21,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.vanshtyagi.findit.data.remote.SearchLostResponse
 import com.vanshtyagi.findit.ui.components.MatchResultCard
+import com.vanshtyagi.findit.ui.theme.FindItColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,14 +38,20 @@ fun ResultsScreen(
     onBack: () -> Unit
 ) {
     Scaffold(
+        containerColor = FindItColors.OffWhite,
         topBar = {
             TopAppBar(
-                title = { Text("AI Match Results") },
+                title = { Text("AI Match Results", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = FindItColors.DeepNavy,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         }
     ) { padding ->

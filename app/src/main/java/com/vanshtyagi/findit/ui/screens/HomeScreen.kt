@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,8 +17,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -166,12 +169,15 @@ fun HomeScreen(
             )
         }
     ) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = innerPadding.calculateBottomPadding()),
-            contentPadding = PaddingValues(bottom = 24.dp)
+                .padding(bottom = innerPadding.calculateBottomPadding())
         ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 24.dp)
+            ) {
             item {
                 HeaderWithOverlappingCards(
                     searchQuery = searchQuery,
@@ -305,6 +311,16 @@ fun HomeScreen(
                 }
             }
         }
+
+            // Solid navy status bar scrim so scrolled content never merges with notification icons
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsTopHeight(WindowInsets.statusBars)
+                    .background(FindItColors.DeepNavy)
+                    .align(Alignment.TopCenter)
+            )
+        }
     }
 
     if (showQuickActionSheet) {
@@ -357,16 +373,22 @@ private fun HeaderWithOverlappingCards(
     onProfileClick: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxWidth()) {
-        // Deep Navy Header Background
-        Column(
+        // Deep Navy Header Background stopping midway behind the action cards
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .matchParentSize()
+                .padding(bottom = 52.dp)
                 .background(
                     color = FindItColors.DeepNavy,
                     shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
                 )
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 78.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -471,36 +493,32 @@ private fun HeaderWithOverlappingCards(
                     }
                 }
             }
-        }
+            Spacer(modifier = Modifier.height(18.dp))
 
-        // Overlapping 2-Column Action Cards
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .offset(y = 14.dp)
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            PrimaryActionCard(
-                title = "I Lost\nSomething",
-                backgroundColor = FindItColors.RoyalBlue,
-                leadingIcon = Icons.Default.Search,
-                badgeSymbol = "?",
-                onClick = onLostClick,
-                modifier = Modifier.weight(1f)
-            )
-            PrimaryActionCard(
-                title = "I Found\nSomething",
-                backgroundColor = FindItColors.Terracotta,
-                leadingIcon = Icons.Outlined.PanTool,
-                badgeSymbol = "+",
-                onClick = onFoundClick,
-                modifier = Modifier.weight(1f)
-            )
+            // 2-Column Action Cards overlapping only the bottom edge of the navy header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                PrimaryActionCard(
+                    title = "I Lost\nSomething",
+                    backgroundColor = FindItColors.RoyalBlue,
+                    leadingIcon = Icons.Default.Search,
+                    badgeSymbol = "?",
+                    onClick = onLostClick,
+                    modifier = Modifier.weight(1f)
+                )
+                PrimaryActionCard(
+                    title = "I Found\nSomething",
+                    backgroundColor = FindItColors.Terracotta,
+                    leadingIcon = Icons.Outlined.PanTool,
+                    badgeSymbol = "+",
+                    onClick = onFoundClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
-    Spacer(modifier = Modifier.height(14.dp))
 }
 
 @Composable
@@ -712,21 +730,20 @@ private fun FindItBottomBar(
     onMessages: () -> Unit
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
+        modifier = Modifier.fillMaxWidth()
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
                 .align(Alignment.BottomCenter),
             color = Color.White,
             shadowElevation = 8.dp
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .height(64.dp)
                     .padding(horizontal = 8.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
@@ -768,7 +785,7 @@ private fun FindItBottomBar(
             modifier = Modifier
                 .size(56.dp)
                 .align(Alignment.TopCenter)
-                .offset(y = (-16).dp)
+                .offset(y = (-24).dp)
         ) {
             Icon(Icons.Default.Add, contentDescription = "Quick Action", modifier = Modifier.size(28.dp))
         }
