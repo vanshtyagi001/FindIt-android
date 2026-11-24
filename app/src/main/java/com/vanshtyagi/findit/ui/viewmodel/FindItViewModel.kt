@@ -1,0 +1,283 @@
+package com.vanshtyagi.findit.ui.viewmodel
+
+import android.content.Context
+import android.net.Uri
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.vanshtyagi.findit.data.remote.ItemDto
+import com.vanshtyagi.findit.data.remote.SearchLostResponse
+import com.vanshtyagi.findit.data.repository.FindItRepository
+import com.vanshtyagi.findit.data.util.ImageUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+
+enum class ServerStatus { WAKING, ONLINE, OFFLINE }
+
+data class FindItUiState(
+    val serverStatus: ServerStatus = ServerStatus.WAKING,
+    val itemTypes: List<String> = DEFAULT_ITEM_TYPES,
+    val recentFoundItems: List<ItemDto> = emptyList(),
+    val isLoadingItems: Boolean = false,
+    val isSubmitting: Boolean = false,
+    val loadingMessage: String = "",
+    val reportSuccessMessage: String? = null,
+    val searchResponse: SearchLostResponse? = null,
+    val errorMessage: String? = null,
+    val adminToken: String? = null,
+    val adminStatusMessage: String? = null
+) {
+    companion object {
+        val DEFAULT_ITEM_TYPES = listOf(
+            "Electronics", "Keys", "Wallet/Purse", "Clothing",
+            "Bag/Backpack", "Jewelry/Watch", "Book/Notebook",
+            "Pet", "Identification", "Other"
+        )
+    }
+}
+
+class FindItViewModel(
+    private val repository: FindItRepository = FindItRepository()
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(FindItUiState())
+    val uiState: StateFlow<FindItUiState> = _uiState.asStateFlow()
+
+    init {
+        warmUpAndLoad()
+    }
+
+    fun warmUpAndLoad() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(serverStatus = ServerStatus.WAKING) }
+            repository.checkHealth()
+                .onSuccess { health ->
+                    _uiState.update {
+                        it.copy(
+                            serverStatus = ServerStatus.ONLINE,
+                            itemTypes = health.itemTypes.ifEmpty { FindItUiState.DEFAULT_ITEM_TYPES }
+                        )
+                    }
+                    loadRecentFoundItems()
+                }
+                .onFailure {
+                    _uiState.update { it.copy(serverStatus = ServerStatus.OFFLINE) }
+                }
+        }
+    }
+
+    fun loadRecentFoundItems() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingItems = true) }
+            repository.listItems(status = "found", limit = 25)
+                .onSuccess { resp ->
+                    _uiState.update {
+                        it.copy(recentFoundItems = resp.items, isLoadingItems = false)
+                    }
+                }
+                .onFailure { err ->
+                    _uiState.update {
+                        it.copy(isLoadingItems = false, errorMessage = err.message)
+                    }
+                }
+        }
+    }
+
+    fun reportFound(
+        context: Context,
+        imageUri: Uri,
+        itemType: String,
+        location: String,
+        contactInfo: String,
+        color: String,
+        brand: String,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isSubmitting = true,
+                    loadingMessage = "Uploading photo & generating Gemini AI description...",
+                    errorMessage = null,
+                    reportSuccessMessage = null
+                )
+            }
+            var tempFile: File? = null
+            try {
+                tempFile = withContext(Dispatchers.IO) {
+                    ImageUtils.prepareImageForUpload(context, imageUri)
+                }
+                repository.reportFound(
+                    imageFile = tempFile,
+                    itemType = itemType,
+                    location = location,
+                    contactInfo = contactInfo,
+                    color = color,
+                    brand = brand
+                ).onSuccess { resp ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            reportSuccessMessage = resp.aiWarning?.let { w ->
+                                "${resp.message} (Note: $w)"
+                            } ?: resp.message
+                        )
+                    }
+                    loadRecentFoundItems()
+                    onSuccess()
+                }.onFailure { err ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            errorMessage = err.message ?: "Failed to report found item."
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isSubmitting = false,
+                        errorMessage = e.message ?: "Unable to process image."
+                    )
+                }
+            } finally {
+                tempFile?.delete()
+            }
+        }
+    }
+
+    fun searchLost(
+        context: Context,
+        imageUri: Uri,
+        itemType: String,
+        location: String,
+        color: String,
+        brand: String,
+        onResultsReady: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isSubmitting = true,
+                    loadingMessage = "Analyzing photo & running 3-tier Gemini AI matching...",
+                    errorMessage = null,
+                    searchResponse = null
+                )
+            }
+            var tempFile: File? = null
+            try {
+                tempFile = withContext(Dispatchers.IO) {
+                    ImageUtils.prepareImageForUpload(context, imageUri)
+                }
+                repository.searchLost(
+                    imageFile = tempFile,
+                    itemType = itemType,
+                    location = location,
+                    color = color,
+                    brand = brand
+                ).onSuccess { resp ->
+                    _uiState.update {
+                        it.copy(isSubmitting = false, searchResponse = resp)
+                    }
+                    onResultsReady()
+                }.onFailure { err ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            errorMessage = err.message ?: "Search failed."
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isSubmitting = false,
+                        errorMessage = e.message ?: "Unable to process image."
+                    )
+                }
+            } finally {
+                tempFile?.delete()
+            }
+        }
+    }
+
+    fun adminLogin(username: String, password: String) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isSubmitting = true, loadingMessage = "Signing in...", errorMessage = null)
+            }
+            repository.adminLogin(username, password)
+                .onSuccess { resp ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            adminToken = resp.token,
+                            adminStatusMessage = "Signed in as admin."
+                        )
+                    }
+                    loadRecentFoundItems()
+                }
+                .onFailure { err ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            errorMessage = err.message ?: "Invalid credentials."
+                        )
+                    }
+                }
+        }
+    }
+
+    fun deleteItem(itemId: Int) {
+        val token = _uiState.value.adminToken ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmitting = true, loadingMessage = "Deleting item #$itemId...") }
+            repository.deleteItem(token, itemId)
+                .onSuccess { resp ->
+                    _uiState.update {
+                        it.copy(isSubmitting = false, adminStatusMessage = resp.message)
+                    }
+                    loadRecentFoundItems()
+                }
+                .onFailure { err ->
+                    _uiState.update {
+                        it.copy(isSubmitting = false, errorMessage = err.message)
+                    }
+                }
+        }
+    }
+
+    fun clearAllItems() {
+        val token = _uiState.value.adminToken ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmitting = true, loadingMessage = "Clearing all items...") }
+            repository.clearAllItems(token)
+                .onSuccess { resp ->
+                    _uiState.update {
+                        it.copy(isSubmitting = false, adminStatusMessage = resp.message)
+                    }
+                    loadRecentFoundItems()
+                }
+                .onFailure { err ->
+                    _uiState.update {
+                        it.copy(isSubmitting = false, errorMessage = err.message)
+                    }
+                }
+        }
+    }
+
+    fun adminLogout() {
+        _uiState.update { it.copy(adminToken = null, adminStatusMessage = null) }
+    }
+
+    fun clearMessages() {
+        _uiState.update {
+            it.copy(errorMessage = null, reportSuccessMessage = null, adminStatusMessage = null)
+        }
+    }
+}
