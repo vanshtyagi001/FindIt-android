@@ -645,12 +645,6 @@ fun LoadingOverlay(message: String) {
                     fontWeight = FontWeight.SemiBold,
                     color = FindItColors.DeepNavy
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "If the server was asleep, the first request may take up to ~45 seconds.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF64748B)
-                )
             }
         }
     }
