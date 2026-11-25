@@ -5,7 +5,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -54,6 +62,31 @@ private object Routes {
     const val MESSAGES = "messages"
 }
 
+private val bottomTabRoutes = setOf(Routes.MY_ITEMS, Routes.MESSAGES)
+
+private val pushEnter = slideInHorizontally(
+    animationSpec = tween(380, easing = FastOutSlowInEasing),
+    initialOffsetX = { it }
+) + fadeIn(animationSpec = tween(220), initialAlpha = 0.65f)
+
+private val pushExit = slideOutHorizontally(
+    animationSpec = tween(380, easing = FastOutSlowInEasing),
+    targetOffsetX = { -(it * 0.25f).toInt() }
+) + fadeOut(animationSpec = tween(280), targetAlpha = 0.85f)
+
+private val popEnter = slideInHorizontally(
+    animationSpec = tween(340, easing = FastOutSlowInEasing),
+    initialOffsetX = { -(it * 0.25f).toInt() }
+) + fadeIn(animationSpec = tween(260), initialAlpha = 0.85f)
+
+private val popExit = slideOutHorizontally(
+    animationSpec = tween(340, easing = FastOutSlowInEasing),
+    targetOffsetX = { it }
+) + fadeOut(animationSpec = tween(220), targetAlpha = 0.65f)
+
+private val tabEnter = fadeIn(animationSpec = tween(200))
+private val tabExit = fadeOut(animationSpec = tween(150))
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,11 +108,31 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun FindItApp(viewModel: FindItViewModel = viewModel()) {
     val navController = rememberNavController()
-    val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    NavHost(navController = navController, startDestination = Routes.HOME) {
-        composable(Routes.HOME) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(FindItColors.OffWhite)
+    ) {
+    NavHost(
+        navController = navController,
+        startDestination = Routes.HOME,
+        enterTransition = { pushEnter },
+        exitTransition = { pushExit },
+        popEnterTransition = { popEnter },
+        popExitTransition = { popExit }
+    ) {
+        composable(
+            route = Routes.HOME,
+            exitTransition = {
+                if (targetState.destination.route in bottomTabRoutes) tabExit else pushExit
+            },
+            popEnterTransition = {
+                if (initialState.destination.route in bottomTabRoutes) tabEnter else popEnter
+            }
+        ) {
+            val uiState by viewModel.uiState.collectAsState()
             HomeScreen(
                 uiState = uiState,
                 onNavigateReportFound = {
@@ -92,7 +145,7 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
                 },
                 onNavigateAdmin = {
                     viewModel.clearMessages()
-                    if (uiState.adminToken != null) {
+                    if (viewModel.uiState.value.adminToken != null) {
                         navController.navigate(Routes.ADMIN)
                     } else {
                         navController.navigate(Routes.AUTH)
@@ -109,6 +162,7 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
         }
 
         composable(Routes.REPORT_FOUND) {
+            val uiState by viewModel.uiState.collectAsState()
             ReportFoundScreen(
                 uiState = uiState,
                 onBack = { navController.popBackStack() },
@@ -131,6 +185,7 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
         }
 
         composable(Routes.SEARCH_LOST) {
+            val uiState by viewModel.uiState.collectAsState()
             SearchLostScreen(
                 uiState = uiState,
                 onBack = { navController.popBackStack() },
@@ -152,6 +207,7 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
         }
 
         composable(Routes.RESULTS) {
+            val uiState by viewModel.uiState.collectAsState()
             ResultsScreen(
                 searchResponse = uiState.searchResponse,
                 onBack = { navController.popBackStack() }
@@ -159,6 +215,7 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
         }
 
         composable(Routes.AUTH) {
+            val uiState by viewModel.uiState.collectAsState()
             AuthScreen(
                 uiState = uiState,
                 onBack = { navController.popBackStack() },
@@ -189,6 +246,7 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
         }
 
         composable(Routes.ADMIN) {
+            val uiState by viewModel.uiState.collectAsState()
             AdminScreen(
                 uiState = uiState,
                 onBack = { navController.popBackStack() },
@@ -199,7 +257,13 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
             )
         }
 
-        composable(Routes.MY_ITEMS) {
+        composable(
+            route = Routes.MY_ITEMS,
+            enterTransition = { tabEnter },
+            exitTransition = { tabExit },
+            popEnterTransition = { tabEnter },
+            popExitTransition = { tabExit }
+        ) {
             PlaceholderTabScreen(
                 title = "My Items",
                 description = "Your submitted lost and found reports will appear here once user accounts are enabled.",
@@ -207,13 +271,20 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
             )
         }
 
-        composable(Routes.MESSAGES) {
+        composable(
+            route = Routes.MESSAGES,
+            enterTransition = { tabEnter },
+            exitTransition = { tabExit },
+            popEnterTransition = { tabEnter },
+            popExitTransition = { tabExit }
+        ) {
             PlaceholderTabScreen(
                 title = "Messages",
                 description = "In-app finder/owner chat threads will appear here. For now, use the Contact button on any match card.",
                 onBack = { navController.popBackStack() }
             )
         }
+    }
     }
 }
 
