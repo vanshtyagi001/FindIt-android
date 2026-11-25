@@ -33,9 +33,11 @@ object ImageUtils {
      */
     fun prepareImageForUpload(context: Context, uri: Uri, maxDim: Int = 1024): File {
         val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use { stream ->
+        val boundsStream = context.contentResolver.openInputStream(uri)
+            ?: throw IllegalArgumentException("Unable to read selected image.")
+        boundsStream.use { stream ->
             BitmapFactory.decodeStream(stream, null, boundsOptions)
-        } ?: throw IllegalArgumentException("Unable to read selected image.")
+        }
 
         val srcWidth = boundsOptions.outWidth
         val srcHeight = boundsOptions.outHeight
