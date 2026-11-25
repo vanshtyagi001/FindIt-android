@@ -7,17 +7,28 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -26,9 +37,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Checkroom
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Pets
+import androidx.compose.material.icons.outlined.Watch
+import androidx.compose.material.icons.outlined.WorkOutline
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -56,12 +77,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
@@ -72,10 +95,40 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.vanshtyagi.findit.data.remote.MatchResultDto
 import com.vanshtyagi.findit.data.util.ImageUtils
 import com.vanshtyagi.findit.ui.theme.FindItColors
 import kotlin.math.roundToInt
+
+/**
+ * GPU-accelerated spring press scale for high-FPS tactile feedback.
+ */
+fun Modifier.bounceClick(
+    pressedScale: Float = 0.96f,
+    onClick: () -> Unit
+): Modifier = composed {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) pressedScale else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "bounceScale"
+    )
+    this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = onClick
+        )
+}
 
 @Composable
 fun findItTextFieldColors() = OutlinedTextFieldDefaults.colors(
@@ -232,7 +285,11 @@ fun ImagePickerCard(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
+        ) {
             Text(
                 text = buildAnnotatedString {
                     append(if (required) "Item Photo " else "Item Photo (Optional)")
@@ -340,53 +397,132 @@ fun ImagePickerCard(
     }
 
     if (showPickerSheet) {
-        ModalBottomSheet(onDismissRequest = { showPickerSheet = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showPickerSheet = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            contentWindowInsets = { WindowInsets.navigationBars },
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 10.dp, bottom = 2.dp)
+                        .width(38.dp)
+                        .height(4.dp)
+                        .background(Color(0xFFCBD5E1), CircleShape)
+                )
+            }
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "Add Item Photo",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = FindItColors.DeepNavy
-                )
-                Button(
+                Column {
+                    Text(
+                        text = "Add Item Photo",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = FindItColors.DeepNavy
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Choose how you want to attach a photo",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF64748B)
+                    )
+                }
+
+                PhotoPickerOptionCard(
+                    title = "Take Photo with Camera",
+                    subtitle = "Capture a clear photo right now",
+                    accentColor = accentColor,
+                    icon = Icons.Default.CameraAlt,
                     onClick = {
                         showPickerSheet = false
                         launchCamera()
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = accentColor,
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
-                ) {
-                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Take Photo with Camera", fontWeight = FontWeight.SemiBold)
-                }
-                OutlinedButton(
+                    }
+                )
+
+                PhotoPickerOptionCard(
+                    title = "Choose from Gallery",
+                    subtitle = "Select an existing image from your device",
+                    accentColor = accentColor,
+                    icon = Icons.Default.PhotoLibrary,
                     onClick = {
                         showPickerSheet = false
                         launchGallery()
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.5.dp, accentColor),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = accentColor),
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
-                ) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Choose from Gallery", fontWeight = FontWeight.SemiBold)
-                }
-                Spacer(modifier = Modifier.height(16.dp))
+                    }
+                )
             }
         }
     }
+}
+
+@Composable
+private fun PhotoPickerOptionCard(
+    title: String,
+    subtitle: String,
+    accentColor: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFFF8FAFC))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(accentColor, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = FindItColors.DeepNavy
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF475569)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color(0xFF94A3B8)
+            )
+        }
+    }
+}
+
+private fun categoryIcon(category: String) = when {
+    category.contains("Electronic", ignoreCase = true) -> Icons.Outlined.Devices
+    category.contains("Key", ignoreCase = true) || category.contains("Wallet", ignoreCase = true) -> Icons.Outlined.Key
+    category.contains("Pet", ignoreCase = true) -> Icons.Outlined.Pets
+    category.contains("Bag", ignoreCase = true) || category.contains("Luggage", ignoreCase = true) -> Icons.Outlined.WorkOutline
+    category.contains("Document", ignoreCase = true) || category.contains("Identification", ignoreCase = true) -> Icons.Outlined.Description
+    category.contains("Cloth", ignoreCase = true) -> Icons.Outlined.Checkroom
+    category.contains("Jewelry", ignoreCase = true) || category.contains("Watch", ignoreCase = true) -> Icons.Outlined.Watch
+    else -> Icons.Outlined.Category
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -394,6 +530,7 @@ fun ImagePickerCard(
 fun CategoryDropdown(
     selectedCategory: String,
     categories: List<String>,
+    accentColor: Color = FindItColors.RoyalBlue,
     asteriskColor: Color = FindItColors.RequiredRed,
     onCategorySelected: (String) -> Unit
 ) {
@@ -408,6 +545,13 @@ fun CategoryDropdown(
             onValueChange = {},
             readOnly = true,
             label = { FieldLabel("Item Category", required = true, asteriskColor = asteriskColor) },
+            leadingIcon = {
+                Icon(
+                    imageVector = categoryIcon(selectedCategory),
+                    contentDescription = null,
+                    tint = Color(0xFF475569)
+                )
+            },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             shape = RoundedCornerShape(12.dp),
             colors = findItTextFieldColors(),
@@ -417,15 +561,57 @@ fun CategoryDropdown(
         )
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            tonalElevation = 0.dp,
+            shadowElevation = 6.dp,
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            modifier = Modifier
+                .padding(top = 6.dp)
+                .heightIn(max = 260.dp)
         ) {
             categories.forEach { category ->
+                val isSelected = category == selectedCategory
+                val itemHighlight = if (accentColor == FindItColors.Terracotta) {
+                    Color(0xFFFFF1EE)
+                } else {
+                    Color(0xFFEFF6FF)
+                }
                 DropdownMenuItem(
-                    text = { Text(category) },
+                    text = {
+                        Text(
+                            text = category,
+                            color = FindItColors.DeepNavy,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = categoryIcon(category),
+                            contentDescription = null,
+                            tint = if (isSelected) accentColor else Color(0xFF64748B),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    trailingIcon = if (isSelected) {
+                        {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = "Selected",
+                                tint = accentColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    } else null,
                     onClick = {
                         onCategorySelected(category)
                         expanded = false
-                    }
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) itemHighlight else Color.Transparent)
                 )
             }
         }
@@ -482,7 +668,11 @@ fun MatchResultCard(match: MatchResultDto) {
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -512,7 +702,10 @@ fun MatchResultCard(match: MatchResultDto) {
 
             if (!item.imageUrl.isNullOrBlank()) {
                 AsyncImage(
-                    model = item.imageUrl,
+                    model = ImageRequest.Builder(context)
+                        .data(item.imageUrl)
+                        .crossfade(200)
+                        .build(),
                     contentDescription = item.itemType,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -577,6 +770,12 @@ fun MatchResultCard(match: MatchResultDto) {
 
 @Composable
 private fun ScoreBar(label: String, score: Double) {
+    val target = score.toFloat().coerceIn(0f, 1f)
+    val animatedProgress by animateFloatAsState(
+        targetValue = target,
+        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+        label = "scoreProgress"
+    )
     val pct = (score * 100).roundToInt()
     Column(modifier = Modifier.padding(vertical = 2.dp)) {
         Row(
@@ -592,7 +791,7 @@ private fun ScoreBar(label: String, score: Double) {
             )
         }
         LinearProgressIndicator(
-            progress = { score.toFloat().coerceIn(0f, 1f) },
+            progress = { animatedProgress },
             color = FindItColors.RoyalBlue,
             trackColor = Color(0xFFE2E8F0),
             modifier = Modifier

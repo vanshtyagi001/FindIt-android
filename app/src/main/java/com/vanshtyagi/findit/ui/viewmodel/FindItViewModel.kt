@@ -37,9 +37,14 @@ data class FindItUiState(
 ) {
     companion object {
         val DEFAULT_ITEM_TYPES = listOf(
-            "Electronics", "Keys", "Wallet/Purse", "Clothing",
-            "Bag/Backpack", "Jewelry/Watch", "Book/Notebook",
-            "Pet", "Identification", "Other"
+            "Electronics",
+            "Keys & Wallet",
+            "Pets",
+            "Bags & Luggage",
+            "Documents",
+            "Clothing",
+            "Jewelry & Watch",
+            "Other"
         )
     }
 }
@@ -59,11 +64,11 @@ class FindItViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(serverStatus = ServerStatus.WAKING) }
             repository.checkHealth()
-                .onSuccess { health ->
+                .onSuccess {
                     _uiState.update {
                         it.copy(
                             serverStatus = ServerStatus.ONLINE,
-                            itemTypes = health.itemTypes.ifEmpty { FindItUiState.DEFAULT_ITEM_TYPES }
+                            itemTypes = FindItUiState.DEFAULT_ITEM_TYPES
                         )
                     }
                     loadRecentFoundItems()
@@ -342,8 +347,12 @@ class FindItViewModel(
     }
 
     fun clearMessages() {
-        _uiState.update {
-            it.copy(errorMessage = null, reportSuccessMessage = null, adminStatusMessage = null)
+        _uiState.update { state ->
+            if (state.errorMessage == null && state.reportSuccessMessage == null && state.adminStatusMessage == null) {
+                state
+            } else {
+                state.copy(errorMessage = null, reportSuccessMessage = null, adminStatusMessage = null)
+            }
         }
     }
 }

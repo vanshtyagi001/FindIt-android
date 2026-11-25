@@ -158,6 +158,7 @@ fun ReportFoundScreen(
                             CategoryDropdown(
                                 selectedCategory = category,
                                 categories = uiState.itemTypes,
+                                accentColor = FindItColors.Terracotta,
                                 asteriskColor = FindItColors.RequiredRed,
                                 onCategorySelected = { category = it }
                             )

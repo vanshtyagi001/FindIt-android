@@ -158,6 +158,7 @@ fun SearchLostScreen(
                             CategoryDropdown(
                                 selectedCategory = category,
                                 categories = uiState.itemTypes,
+                                accentColor = FindItColors.RoyalBlue,
                                 asteriskColor = FindItColors.RequiredRed,
                                 onCategorySelected = { category = it }
                             )

@@ -1,5 +1,7 @@
 package com.vanshtyagi.findit.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -28,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
@@ -74,8 +78,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.vanshtyagi.findit.data.remote.ItemDto
+import com.vanshtyagi.findit.ui.components.bounceClick
 import com.vanshtyagi.findit.ui.theme.FindItColors
 import com.vanshtyagi.findit.ui.viewmodel.FindItUiState
 import java.time.Duration
@@ -99,28 +106,28 @@ private val quickCategories = listOf(
     ),
     QuickCategory(
         label = "Keys &\nWallet",
-        matchTypes = listOf("Keys", "Wallet/Purse"),
+        matchTypes = listOf("Keys & Wallet", "Keys", "Wallet/Purse"),
         icon = Icons.Outlined.Key,
         bgColor = Color(0xFFFEF3C7),
         tintColor = Color(0xFFD97706)
     ),
     QuickCategory(
         label = "Pets",
-        matchTypes = listOf("Pet"),
+        matchTypes = listOf("Pets", "Pet"),
         icon = Icons.Outlined.Pets,
         bgColor = Color(0xFFFFEDD5),
         tintColor = Color(0xFFEA580C)
     ),
     QuickCategory(
         label = "Bags &\nLuggage",
-        matchTypes = listOf("Bag/Backpack"),
+        matchTypes = listOf("Bags & Luggage", "Bag/Backpack"),
         icon = Icons.Outlined.WorkOutline,
         bgColor = Color(0xFFFEE2E2),
         tintColor = Color(0xFFDC2626)
     ),
     QuickCategory(
         label = "Documents",
-        matchTypes = listOf("Identification", "Book/Notebook"),
+        matchTypes = listOf("Documents", "Identification", "Book/Notebook"),
         icon = Icons.Outlined.Description,
         bgColor = Color(0xFFCCFBF1),
         tintColor = Color(0xFF0F766E)
@@ -223,7 +230,11 @@ fun HomeScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        items(quickCategories) { cat ->
+                        items(
+                            items = quickCategories,
+                            key = { it.label },
+                            contentType = { "category_tile" }
+                        ) { cat ->
                             val isSelected = selectedCategory == cat
                             QuickCategoryTile(
                                 category = cat,
@@ -302,11 +313,17 @@ fun HomeScreen(
                     }
                 }
             } else {
-                items(filteredItems, key = { it.id }) { item ->
+                items(
+                    items = filteredItems,
+                    key = { it.id },
+                    contentType = { "activity_card" }
+                ) { item ->
                     RecentActivityCard(
                         item = item,
                         onClick = onNavigateSearchLost,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp)
+                        modifier = Modifier
+                            .animateItem()
+                            .padding(horizontal = 16.dp, vertical = 5.dp)
                     )
                 }
             }
@@ -324,19 +341,42 @@ fun HomeScreen(
     }
 
     if (showQuickActionSheet) {
-        ModalBottomSheet(onDismissRequest = { showQuickActionSheet = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showQuickActionSheet = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            contentWindowInsets = { WindowInsets.navigationBars },
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 10.dp, bottom = 2.dp)
+                        .width(38.dp)
+                        .height(4.dp)
+                        .background(Color(0xFFCBD5E1), CircleShape)
+                )
+            }
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "What would you like to do?",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = FindItColors.DeepNavy
-                )
+                Column {
+                    Text(
+                        text = "Quick Action",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = FindItColors.DeepNavy
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Select an option to continue",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF64748B)
+                    )
+                }
+
                 ActionSheetButton(
                     title = "I Lost Something",
                     subtitle = "Search found items using Gemini AI matching",
@@ -357,7 +397,6 @@ fun HomeScreen(
                         onNavigateReportFound()
                     }
                 )
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
@@ -533,9 +572,9 @@ private fun PrimaryActionCard(
     Surface(
         modifier = modifier
             .height(132.dp)
+            .bounceClick(pressedScale = 0.96f, onClick = onClick)
             .shadow(elevation = 6.dp, shape = RoundedCornerShape(16.dp))
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
+            .clip(RoundedCornerShape(16.dp)),
         color = backgroundColor,
         shape = RoundedCornerShape(16.dp)
     ) {
@@ -588,11 +627,16 @@ private fun QuickCategoryTile(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val labelColor by animateColorAsState(
+        targetValue = if (isSelected) FindItColors.DeepNavy else Color(0xFF475569),
+        animationSpec = tween(180),
+        label = "catLabelColor"
+    )
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .width(64.dp)
-            .clickable(onClick = onClick)
+            .bounceClick(pressedScale = 0.93f, onClick = onClick)
     ) {
         Box(
             modifier = Modifier
@@ -621,7 +665,7 @@ private fun QuickCategoryTile(
             fontSize = 11.sp,
             lineHeight = 13.sp,
             textAlign = TextAlign.Center,
-            color = if (isSelected) FindItColors.DeepNavy else Color(0xFF475569),
+            color = labelColor,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             maxLines = 2
         )
@@ -653,8 +697,12 @@ private fun RecentActivityCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val context = LocalContext.current
             AsyncImage(
-                model = item.imageUrl,
+                model = ImageRequest.Builder(context)
+                    .data(item.imageUrl)
+                    .crossfade(200)
+                    .build(),
                 contentDescription = item.itemType,
                 modifier = Modifier
                     .size(64.dp)
@@ -826,12 +874,14 @@ private fun ActionSheetButton(
     icon: ImageVector,
     onClick: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(14.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA))
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xFFF8FAFC)
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -839,17 +889,33 @@ private fun ActionSheetButton(
         ) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .background(accentColor.copy(alpha = 0.14f), CircleShape),
+                    .size(44.dp)
+                    .background(accentColor, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = accentColor)
+                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(title, fontWeight = FontWeight.Bold, color = FindItColors.DeepNavy)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = FindItColors.DeepNavy
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF475569)
+                )
             }
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color(0xFF94A3B8)
+            )
         }
     }
 }

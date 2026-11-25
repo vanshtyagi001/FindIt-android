@@ -1,6 +1,21 @@
 package com.vanshtyagi.findit.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,14 +35,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.AdminPanelSettings
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,9 +52,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,10 +63,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import com.vanshtyagi.findit.R
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.vanshtyagi.findit.ui.components.FieldLabel
 import com.vanshtyagi.findit.ui.components.FormHeaderBanner
 import com.vanshtyagi.findit.ui.components.LoadingOverlay
@@ -77,9 +100,15 @@ fun AuthScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var localError by remember { mutableStateOf<String?>(null) }
+    var infoMessage by remember { mutableStateOf<String?>(null) }
 
     val fieldColors = findItTextFieldColors()
-    val accentColor = if (isAdminMode) FindItColors.Terracotta else FindItColors.RoyalBlue
+    val accentColor by animateColorAsState(
+        targetValue = if (isAdminMode) FindItColors.Terracotta else FindItColors.RoyalBlue,
+        animationSpec = tween(durationMillis = 300),
+        label = "authAccentColor"
+    )
+    val iconTint = Color(0xFF475569)
 
     Scaffold(
         containerColor = FindItColors.OffWhite
@@ -113,72 +142,11 @@ fun AuthScreen(
                         .fillMaxWidth()
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
+                        .padding(horizontal = 16.dp, vertical = 18.dp)
                         .navigationBarsPadding(),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Role Switch Card (User <-> Admin)
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .background(accentColor.copy(alpha = 0.12f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (isAdminMode) Icons.Default.AdminPanelSettings else Icons.Default.Person,
-                                        contentDescription = null,
-                                        tint = accentColor,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "Admin Login",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = FindItColors.DeepNavy
-                                    )
-                                    Text(
-                                        text = if (isAdminMode) "Switched to Administrator" else "Switch for admin access",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFF64748B)
-                                    )
-                                }
-                            }
-                            Switch(
-                                checked = isAdminMode,
-                                onCheckedChange = {
-                                    isAdminMode = it
-                                    localError = null
-                                    password = ""
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = FindItColors.Terracotta,
-                                    uncheckedThumbColor = Color.White,
-                                    uncheckedTrackColor = Color(0xFFCBD5E1)
-                                )
-                            )
-                        }
-                    }
-
                     if (!isAdminMode && uiState.currentUser != null) {
-                        // Signed-in User Card
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
@@ -233,7 +201,7 @@ fun AuthScreen(
                                     onClick = onOpenAdminPanel,
                                     shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = FindItColors.DeepNavy,
+                                        containerColor = FindItColors.Terracotta,
                                         contentColor = Color.White
                                     ),
                                     modifier = Modifier.fillMaxWidth().height(50.dp)
@@ -248,16 +216,18 @@ fun AuthScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
                             Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 if (!isAdminMode) {
-                                    // Clean Sign In / Sign Up Segmented Pill
+                                    // High-contrast Sign In / Sign Up Segmented Pill
                                     Surface(
-                                        color = FindItColors.OffWhite,
+                                        color = Color(0xFFEEF2F6),
                                         shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
@@ -271,6 +241,7 @@ fun AuthScreen(
                                                 onClick = {
                                                     isSignUp = false
                                                     localError = null
+                                                    infoMessage = null
                                                 },
                                                 modifier = Modifier.weight(1f)
                                             )
@@ -280,6 +251,7 @@ fun AuthScreen(
                                                 onClick = {
                                                     isSignUp = true
                                                     localError = null
+                                                    infoMessage = null
                                                 },
                                                 modifier = Modifier.weight(1f)
                                             )
@@ -294,63 +266,113 @@ fun AuthScreen(
                                     )
                                 }
 
-                                if (!isAdminMode && isSignUp) {
-                                    OutlinedTextField(
-                                        value = name,
-                                        onValueChange = { name = it },
-                                        label = { FieldLabel("Full Name", required = true) },
-                                        placeholder = { Text("e.g., Vansh Tyagi") },
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = fieldColors,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-
-                                if (isAdminMode) {
-                                    OutlinedTextField(
-                                        value = adminUsername,
-                                        onValueChange = { adminUsername = it },
-                                        label = { FieldLabel("Admin Username", required = true) },
-                                        placeholder = { Text("Enter admin username") },
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = fieldColors,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                } else {
-                                    OutlinedTextField(
-                                        value = email,
-                                        onValueChange = { email = it },
-                                        label = { FieldLabel("Email Address", required = true) },
-                                        placeholder = { Text("you@example.com") },
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = fieldColors,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-
-                                OutlinedTextField(
-                                    value = password,
-                                    onValueChange = { password = it },
-                                    label = { FieldLabel("Password", required = true) },
-                                    placeholder = { Text(if (isSignUp && !isAdminMode) "Minimum 6 characters" else "Enter your password") },
-                                    singleLine = true,
-                                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                    trailingIcon = {
-                                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                            Icon(
-                                                imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                contentDescription = "Toggle password visibility",
-                                                tint = FindItColors.DeepNavy
+                                AnimatedContent(
+                                    targetState = Pair(isAdminMode, isSignUp),
+                                    transitionSpec = {
+                                        (slideInVertically(
+                                            animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                            initialOffsetY = { it / 6 }
+                                        ) + fadeIn(tween(220))) togetherWith (slideOutVertically(
+                                            animationSpec = tween(180, easing = FastOutSlowInEasing),
+                                            targetOffsetY = { -it / 8 }
+                                        ) + fadeOut(tween(140)))
+                                    },
+                                    label = "authFieldsTransition"
+                                ) { (adminMode, signUpMode) ->
+                                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        if (!adminMode && signUpMode) {
+                                            OutlinedTextField(
+                                                value = name,
+                                                onValueChange = { name = it },
+                                                label = { FieldLabel("Full Name", required = false) },
+                                                placeholder = { Text("e.g., Vansh Tyagi") },
+                                                leadingIcon = {
+                                                    Icon(Icons.Outlined.Person, contentDescription = null, tint = iconTint)
+                                                },
+                                                singleLine = true,
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = fieldColors,
+                                                modifier = Modifier.fillMaxWidth()
                                             )
                                         }
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = fieldColors,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+
+                                        if (adminMode) {
+                                            OutlinedTextField(
+                                                value = adminUsername,
+                                                onValueChange = { adminUsername = it },
+                                                label = { FieldLabel("Admin Username", required = false) },
+                                                placeholder = { Text("Enter admin username") },
+                                                leadingIcon = {
+                                                    Icon(Icons.Outlined.Person, contentDescription = null, tint = iconTint)
+                                                },
+                                                singleLine = true,
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = fieldColors,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        } else {
+                                            OutlinedTextField(
+                                                value = email,
+                                                onValueChange = { email = it },
+                                                label = { FieldLabel("Email Address", required = false) },
+                                                placeholder = { Text("you@example.com") },
+                                                leadingIcon = {
+                                                    Icon(Icons.Outlined.Email, contentDescription = null, tint = iconTint)
+                                                },
+                                                singleLine = true,
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = fieldColors,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
+
+                                        OutlinedTextField(
+                                            value = password,
+                                            onValueChange = { password = it },
+                                            label = { FieldLabel("Password", required = false) },
+                                            placeholder = {
+                                                Text(if (signUpMode && !adminMode) "Minimum 6 characters" else "Enter your password")
+                                            },
+                                            leadingIcon = {
+                                                Icon(Icons.Outlined.Lock, contentDescription = null, tint = iconTint)
+                                            },
+                                            singleLine = true,
+                                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                            trailingIcon = {
+                                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                                    Icon(
+                                                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                        contentDescription = "Toggle password visibility",
+                                                        tint = FindItColors.DeepNavy
+                                                    )
+                                                }
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = fieldColors,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+
+                                        if (!adminMode && !signUpMode) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.End
+                                            ) {
+                                                TextButton(
+                                                    onClick = {
+                                                        infoMessage = "Password reset via email is coming soon."
+                                                    }
+                                                ) {
+                                                    Text(
+                                                        text = "Forgot Password?",
+                                                        color = FindItColors.RoyalBlue,
+                                                        style = MaterialTheme.typography.labelLarge,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
 
                                 (localError ?: uiState.errorMessage)?.let { err ->
                                     Text(
@@ -360,9 +382,19 @@ fun AuthScreen(
                                     )
                                 }
 
+                                infoMessage?.let { info ->
+                                    Text(
+                                        text = info,
+                                        color = FindItColors.RoyalBlue,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
                                 Button(
                                     onClick = {
                                         localError = null
+                                        infoMessage = null
                                         if (isAdminMode) {
                                             when {
                                                 adminUsername.isBlank() -> localError = "Admin username is required."
@@ -387,7 +419,7 @@ fun AuthScreen(
                                     enabled = !uiState.isSubmitting,
                                     shape = RoundedCornerShape(14.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isAdminMode) FindItColors.DeepNavy else FindItColors.RoyalBlue,
+                                        containerColor = accentColor,
                                         contentColor = Color.White
                                     ),
                                     modifier = Modifier
@@ -405,6 +437,99 @@ fun AuthScreen(
                                 }
                             }
                         }
+
+                        if (!isAdminMode) {
+                            // "or" divider + Continue with Google
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                HorizontalDivider(
+                                    modifier = Modifier.weight(1f),
+                                    color = Color(0xFFCBD5E1)
+                                )
+                                Text(
+                                    text = "or",
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF64748B)
+                                )
+                                HorizontalDivider(
+                                    modifier = Modifier.weight(1f),
+                                    color = Color(0xFFCBD5E1)
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    infoMessage = "Google Sign-In will be enabled in a future update."
+                                },
+                                shape = RoundedCornerShape(14.dp),
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color.White,
+                                    contentColor = FindItColors.DeepNavy
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_google_logo),
+                                    contentDescription = "Google",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Continue with Google",
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        // Subtle Admin/User Mode Switch Link below the form
+                        Text(
+                            text = buildAnnotatedString {
+                                if (isAdminMode) {
+                                    append("Not an administrator? ")
+                                    withStyle(SpanStyle(color = FindItColors.RoyalBlue, fontWeight = FontWeight.SemiBold)) {
+                                        append("Back to User Login")
+                                    }
+                                } else {
+                                    append("Authorized staff? ")
+                                    withStyle(SpanStyle(color = FindItColors.Terracotta, fontWeight = FontWeight.SemiBold)) {
+                                        append("Switch to Admin Login")
+                                    }
+                                }
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF64748B),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    isAdminMode = !isAdminMode
+                                    localError = null
+                                    infoMessage = null
+                                    password = ""
+                                }
+                                .padding(vertical = 8.dp)
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f, fill = false))
+
+                        Text(
+                            text = "By continuing, you agree to FindIt's Terms of Service & Privacy Policy.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF94A3B8),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
                     }
                 }
             }
@@ -423,11 +548,28 @@ private fun AuthTabPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val bgColor by animateColorAsState(
+        targetValue = if (selected) Color.White else Color.Transparent,
+        animationSpec = tween(200),
+        label = "tabBg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (selected) FindItColors.DeepNavy else Color(0xFF64748B),
+        animationSpec = tween(200),
+        label = "tabText"
+    )
     Surface(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
+            .then(
+                if (selected) {
+                    Modifier.border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
+                } else {
+                    Modifier
+                }
+            )
             .clickable(onClick = onClick),
-        color = if (selected) Color.White else Color.Transparent,
+        color = bgColor,
         shadowElevation = if (selected) 2.dp else 0.dp,
         shape = RoundedCornerShape(10.dp)
     ) {
@@ -439,7 +581,7 @@ private fun AuthTabPill(
                 text = label,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) FindItColors.DeepNavy else Color(0xFF64748B)
+                color = textColor
             )
         }
     }
