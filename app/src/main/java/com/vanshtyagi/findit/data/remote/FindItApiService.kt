@@ -59,6 +59,11 @@ interface FindItApiService {
         @Body body: UserLoginRequest
     ): Response<UserAuthResponse>
 
+    @POST("auth/google")
+    suspend fun googleLogin(
+        @Body body: GoogleLoginRequest
+    ): Response<UserAuthResponse>
+
     @POST("admin/login")
     suspend fun adminLogin(
         @Body body: AdminLoginRequest

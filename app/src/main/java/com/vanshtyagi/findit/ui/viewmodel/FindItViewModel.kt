@@ -2,8 +2,16 @@ package com.vanshtyagi.findit.ui.viewmodel
 
 import android.content.Context
 import android.net.Uri
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.vanshtyagi.findit.BuildConfig
 import com.vanshtyagi.findit.data.remote.ItemDto
 import com.vanshtyagi.findit.data.remote.SearchLostResponse
 import com.vanshtyagi.findit.data.remote.UserDto
@@ -274,6 +282,73 @@ class FindItViewModel(
 
     fun userLogout() {
         _uiState.update { it.copy(userToken = null, currentUser = null) }
+    }
+
+    fun signInWithGoogle(context: Context, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isSubmitting = true, loadingMessage = "Signing in with Google...", errorMessage = null)
+            }
+            try {
+                val credentialManager = CredentialManager.create(context)
+                val googleIdOption = GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+                    .setAutoSelectEnabled(false)
+                    .build()
+
+                val request = GetCredentialRequest.Builder()
+                    .addCredentialOption(googleIdOption)
+                    .build()
+
+                val result = credentialManager.getCredential(context, request)
+                val credential = result.credential
+                if (credential is CustomCredential &&
+                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                ) {
+                    val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                    repository.googleLogin(googleCredential.idToken)
+                        .onSuccess { resp ->
+                            _uiState.update {
+                                it.copy(
+                                    isSubmitting = false,
+                                    userToken = resp.token,
+                                    currentUser = resp.user
+                                )
+                            }
+                            onSuccess()
+                        }
+                        .onFailure { err ->
+                            _uiState.update {
+                                it.copy(
+                                    isSubmitting = false,
+                                    errorMessage = err.message ?: "Google Sign-In verification failed."
+                                )
+                            }
+                        }
+                } else {
+                    _uiState.update {
+                        it.copy(isSubmitting = false, errorMessage = "Unexpected Google credential type.")
+                    }
+                }
+            } catch (_: GetCredentialCancellationException) {
+                _uiState.update { it.copy(isSubmitting = false) }
+            } catch (e: GetCredentialException) {
+                _uiState.update {
+                    it.copy(
+                        isSubmitting = false,
+                        errorMessage = e.errorMessage?.toString() ?: "Google Sign-In failed."
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isSubmitting = false,
+                        errorMessage = e.message ?: "Google Sign-In failed."
+                    )
+                }
+            }
+        }
     }
 
     fun adminLogin(username: String, password: String, onSuccess: () -> Unit = {}) {

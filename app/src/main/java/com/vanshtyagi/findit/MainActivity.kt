@@ -229,6 +229,11 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
                         navController.popBackStack()
                     }
                 },
+                onGoogleSignIn = {
+                    viewModel.signInWithGoogle(context) {
+                        navController.popBackStack()
+                    }
+                },
                 onUserLogout = { viewModel.userLogout() },
                 onAdminLogin = { user, pass ->
                     viewModel.adminLogin(user, pass) {

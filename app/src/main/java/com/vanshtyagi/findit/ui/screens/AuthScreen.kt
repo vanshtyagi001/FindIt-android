@@ -87,6 +87,7 @@ fun AuthScreen(
     onBack: () -> Unit,
     onUserLogin: (String, String) -> Unit,
     onUserRegister: (String, String, String) -> Unit,
+    onGoogleSignIn: () -> Unit,
     onUserLogout: () -> Unit,
     onAdminLogin: (String, String) -> Unit,
     onOpenAdminPanel: () -> Unit
@@ -464,8 +465,11 @@ fun AuthScreen(
 
                             OutlinedButton(
                                 onClick = {
-                                    infoMessage = "Google Sign-In will be enabled in a future update."
+                                    localError = null
+                                    infoMessage = null
+                                    onGoogleSignIn()
                                 },
+                                enabled = !uiState.isSubmitting,
                                 shape = RoundedCornerShape(14.dp),
                                 border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
                                 colors = ButtonDefaults.outlinedButtonColors(

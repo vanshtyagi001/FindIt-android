@@ -5,6 +5,7 @@ import com.vanshtyagi.findit.data.remote.AdminLoginRequest
 import com.vanshtyagi.findit.data.remote.AdminLoginResponse
 import com.vanshtyagi.findit.data.remote.ApiErrorResponse
 import com.vanshtyagi.findit.data.remote.FindItApiService
+import com.vanshtyagi.findit.data.remote.GoogleLoginRequest
 import com.vanshtyagi.findit.data.remote.HealthResponse
 import com.vanshtyagi.findit.data.remote.ItemsListResponse
 import com.vanshtyagi.findit.data.remote.MessageResponse
@@ -90,6 +91,10 @@ class FindItRepository(
 
     suspend fun userLogin(email: String, password: String): Result<UserAuthResponse> = safeCall {
         api.userLogin(UserLoginRequest(email.trim(), password))
+    }
+
+    suspend fun googleLogin(idToken: String): Result<UserAuthResponse> = safeCall {
+        api.googleLogin(GoogleLoginRequest(idToken))
     }
 
     suspend fun adminLogin(username: String, password: String): Result<AdminLoginResponse> = safeCall {

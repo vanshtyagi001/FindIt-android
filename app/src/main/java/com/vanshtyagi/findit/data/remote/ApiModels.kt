@@ -96,6 +96,10 @@ data class UserAuthResponse(
     val user: UserDto
 )
 
+data class GoogleLoginRequest(
+    @SerializedName("id_token") val idToken: String
+)
+
 data class MessageResponse(
     val message: String? = null,
     val error: String? = null
