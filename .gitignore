@@ -8,5 +8,6 @@
 /captures
 /design_reference
 /client_secret_*.json
+.env
 .externalNativeBuild
 .cxx
