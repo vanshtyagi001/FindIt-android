@@ -76,7 +76,26 @@ data class AdminLoginResponse(
 data class UserDto(
     val id: Int,
     val name: String,
-    val email: String
+    val email: String,
+    @SerializedName("avatar_url") val avatarUrl: String? = null,
+    val phone: String? = null,
+    val address: String? = null,
+    val city: String? = null,
+    @SerializedName("alternate_contact") val alternateContact: String? = null,
+    @SerializedName("profile_complete") val profileComplete: Boolean = false
+)
+
+data class UpdateProfileRequest(
+    val name: String,
+    val phone: String,
+    val address: String,
+    val city: String? = null,
+    @SerializedName("alternate_contact") val alternateContact: String? = null
+)
+
+data class ProfileResponse(
+    val message: String? = null,
+    val user: UserDto
 )
 
 data class UserLoginRequest(

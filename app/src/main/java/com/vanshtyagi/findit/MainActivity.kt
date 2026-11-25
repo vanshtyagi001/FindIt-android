@@ -221,18 +221,27 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
                 onBack = { navController.popBackStack() },
                 onUserLogin = { email, pass ->
                     viewModel.userLogin(email, pass) {
-                        navController.popBackStack()
+                        if (viewModel.uiState.value.currentUser?.profileComplete == true) {
+                            navController.popBackStack()
+                        }
                     }
                 },
                 onUserRegister = { name, email, pass ->
                     viewModel.userRegister(name, email, pass) {
-                        navController.popBackStack()
+                        if (viewModel.uiState.value.currentUser?.profileComplete == true) {
+                            navController.popBackStack()
+                        }
                     }
                 },
                 onGoogleSignIn = {
                     viewModel.signInWithGoogle(context) {
-                        navController.popBackStack()
+                        if (viewModel.uiState.value.currentUser?.profileComplete == true) {
+                            navController.popBackStack()
+                        }
                     }
+                },
+                onUpdateProfile = { name, phone, address, city, alt, onSaved ->
+                    viewModel.updateProfile(name, phone, address, city, alt, onSaved)
                 },
                 onUserLogout = { viewModel.userLogout() },
                 onAdminLogin = { user, pass ->

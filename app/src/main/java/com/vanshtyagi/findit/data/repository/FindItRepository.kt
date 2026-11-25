@@ -9,9 +9,11 @@ import com.vanshtyagi.findit.data.remote.GoogleLoginRequest
 import com.vanshtyagi.findit.data.remote.HealthResponse
 import com.vanshtyagi.findit.data.remote.ItemsListResponse
 import com.vanshtyagi.findit.data.remote.MessageResponse
+import com.vanshtyagi.findit.data.remote.ProfileResponse
 import com.vanshtyagi.findit.data.remote.ReportFoundResponse
 import com.vanshtyagi.findit.data.remote.RetrofitClient
 import com.vanshtyagi.findit.data.remote.SearchLostResponse
+import com.vanshtyagi.findit.data.remote.UpdateProfileRequest
 import com.vanshtyagi.findit.data.remote.UserAuthResponse
 import com.vanshtyagi.findit.data.remote.UserLoginRequest
 import com.vanshtyagi.findit.data.remote.UserRegisterRequest
@@ -95,6 +97,26 @@ class FindItRepository(
 
     suspend fun googleLogin(idToken: String): Result<UserAuthResponse> = safeCall {
         api.googleLogin(GoogleLoginRequest(idToken))
+    }
+
+    suspend fun updateProfile(
+        token: String,
+        name: String,
+        phone: String,
+        address: String,
+        city: String,
+        alternateContact: String
+    ): Result<ProfileResponse> = safeCall {
+        api.updateProfile(
+            "Bearer $token",
+            UpdateProfileRequest(
+                name = name.trim(),
+                phone = phone.trim(),
+                address = address.trim(),
+                city = city.trim().ifEmpty { null },
+                alternateContact = alternateContact.trim().ifEmpty { null }
+            )
+        )
     }
 
     suspend fun adminLogin(username: String, password: String): Result<AdminLoginResponse> = safeCall {

@@ -284,6 +284,47 @@ class FindItViewModel(
         _uiState.update { it.copy(userToken = null, currentUser = null) }
     }
 
+    fun updateProfile(
+        name: String,
+        phone: String,
+        address: String,
+        city: String,
+        alternateContact: String,
+        onSuccess: () -> Unit = {}
+    ) {
+        val token = _uiState.value.userToken ?: return
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isSubmitting = true, loadingMessage = "Saving profile...", errorMessage = null)
+            }
+            repository.updateProfile(
+                token = token,
+                name = name,
+                phone = phone,
+                address = address,
+                city = city,
+                alternateContact = alternateContact
+            )
+                .onSuccess { resp ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            currentUser = resp.user
+                        )
+                    }
+                    onSuccess()
+                }
+                .onFailure { err ->
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            errorMessage = err.message ?: "Could not update profile."
+                        )
+                    }
+                }
+        }
+    }
+
     fun signInWithGoogle(context: Context, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             _uiState.update {

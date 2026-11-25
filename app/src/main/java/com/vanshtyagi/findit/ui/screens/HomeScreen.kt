@@ -2,6 +2,7 @@ package com.vanshtyagi.findit.ui.screens
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -192,7 +193,8 @@ fun HomeScreen(
                     onLostClick = onNavigateSearchLost,
                     onFoundClick = onNavigateReportFound,
                     onNotificationClick = onRefresh,
-                    onProfileClick = onNavigateAdmin
+                    onProfileClick = onNavigateAdmin,
+                    avatarUrl = uiState.currentUser?.avatarUrl
                 )
             }
 
@@ -409,7 +411,8 @@ private fun HeaderWithOverlappingCards(
     onLostClick: () -> Unit,
     onFoundClick: () -> Unit,
     onNotificationClick: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    avatarUrl: String? = null
 ) {
     Box(modifier = Modifier.fillMaxWidth()) {
         // Deep Navy Header Background stopping midway behind the action cards
@@ -473,15 +476,30 @@ private fun HeaderWithOverlappingCards(
                             .clip(CircleShape)
                             .clickable(onClick = onProfileClick),
                         color = Color.White.copy(alpha = 0.2f),
-                        shape = CircleShape
+                        shape = CircleShape,
+                        border = if (!avatarUrl.isNullOrBlank()) BorderStroke(1.5.dp, Color.White.copy(alpha = 0.85f)) else null
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Admin / Profile",
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
+                            if (!avatarUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(avatarUrl)
+                                        .crossfade(200)
+                                        .build(),
+                                    contentDescription = "User Profile",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Admin / Profile",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
                     }
                 }
