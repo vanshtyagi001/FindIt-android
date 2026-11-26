@@ -259,12 +259,24 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Recent Activities",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = FindItColors.DeepNavy
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Recent Activities",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = FindItColors.DeepNavy
+                        )
+                        if (uiState.isSyncing) {
+                            CircularProgressIndicator(
+                                strokeWidth = 2.dp,
+                                color = FindItColors.RoyalBlue,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
                     if (selectedCategory != null || searchQuery.isNotBlank()) {
                         Text(
                             text = "Clear filter",
@@ -281,7 +293,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            if (uiState.isLoadingItems) {
+            if (uiState.isLoadingItems && filteredItems.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier

@@ -1,5 +1,6 @@
 package com.vanshtyagi.findit.ui.viewmodel
 
+import android.app.Application
 import android.content.Context
 import android.net.Uri
 import androidx.credentials.CredentialManager
@@ -7,11 +8,12 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.vanshtyagi.findit.BuildConfig
+import com.vanshtyagi.findit.data.local.LocalCacheManager
 import com.vanshtyagi.findit.data.remote.ItemDto
 import com.vanshtyagi.findit.data.remote.SearchLostResponse
 import com.vanshtyagi.findit.data.remote.UserDto
@@ -33,6 +35,7 @@ data class FindItUiState(
     val itemTypes: List<String> = DEFAULT_ITEM_TYPES,
     val recentFoundItems: List<ItemDto> = emptyList(),
     val isLoadingItems: Boolean = false,
+    val isSyncing: Boolean = false,
     val isSubmitting: Boolean = false,
     val loadingMessage: String = "",
     val reportSuccessMessage: String? = null,
@@ -58,19 +61,41 @@ data class FindItUiState(
 }
 
 class FindItViewModel(
+    application: Application
+) : AndroidViewModel(application) {
+
     private val repository: FindItRepository = FindItRepository()
-) : ViewModel() {
+    private val cacheManager: LocalCacheManager = LocalCacheManager(application)
 
     private val _uiState = MutableStateFlow(FindItUiState())
     val uiState: StateFlow<FindItUiState> = _uiState.asStateFlow()
 
     init {
+        hydrateFromCache()
         warmUpAndLoad()
     }
 
+    private fun hydrateFromCache() {
+        val cachedItems = cacheManager.getCachedItems()
+        val cachedSession = cacheManager.getUserSession()
+        if (cachedItems.isNotEmpty() || cachedSession != null) {
+            _uiState.update { state ->
+                state.copy(
+                    recentFoundItems = cachedItems,
+                    userToken = cachedSession?.first,
+                    currentUser = cachedSession?.second
+                )
+            }
+        }
+    }
+
     fun warmUpAndLoad() {
+        // Fetch items immediately in parallel with health check (Stale-While-Revalidate).
+        loadRecentFoundItems()
         viewModelScope.launch {
-            _uiState.update { it.copy(serverStatus = ServerStatus.WAKING) }
+            if (_uiState.value.serverStatus != ServerStatus.ONLINE) {
+                _uiState.update { it.copy(serverStatus = ServerStatus.WAKING) }
+            }
             repository.checkHealth()
                 .onSuccess {
                     _uiState.update {
@@ -79,26 +104,45 @@ class FindItViewModel(
                             itemTypes = FindItUiState.DEFAULT_ITEM_TYPES
                         )
                     }
-                    loadRecentFoundItems()
                 }
                 .onFailure {
-                    _uiState.update { it.copy(serverStatus = ServerStatus.OFFLINE) }
+                    if (_uiState.value.recentFoundItems.isEmpty()) {
+                        _uiState.update { it.copy(serverStatus = ServerStatus.OFFLINE) }
+                    }
                 }
         }
     }
 
     fun loadRecentFoundItems() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingItems = true) }
+            val hasCached = _uiState.value.recentFoundItems.isNotEmpty()
+            _uiState.update {
+                it.copy(
+                    isLoadingItems = !hasCached,
+                    isSyncing = hasCached
+                )
+            }
             repository.listItems(status = "found", limit = 25)
                 .onSuccess { resp ->
                     _uiState.update {
-                        it.copy(recentFoundItems = resp.items, isLoadingItems = false)
+                        it.copy(
+                            recentFoundItems = resp.items,
+                            isLoadingItems = false,
+                            isSyncing = false,
+                            serverStatus = ServerStatus.ONLINE
+                        )
+                    }
+                    withContext(Dispatchers.IO) {
+                        cacheManager.saveCachedItems(resp.items)
                     }
                 }
                 .onFailure { err ->
                     _uiState.update {
-                        it.copy(isLoadingItems = false, errorMessage = err.message)
+                        it.copy(
+                            isLoadingItems = false,
+                            isSyncing = false,
+                            errorMessage = if (hasCached) null else err.message
+                        )
                     }
                 }
         }
@@ -233,6 +277,7 @@ class FindItViewModel(
             }
             repository.userLogin(email, password)
                 .onSuccess { resp ->
+                    cacheManager.saveUserSession(resp.token, resp.user)
                     _uiState.update {
                         it.copy(
                             isSubmitting = false,
@@ -260,6 +305,7 @@ class FindItViewModel(
             }
             repository.userRegister(name, email, password)
                 .onSuccess { resp ->
+                    cacheManager.saveUserSession(resp.token, resp.user)
                     _uiState.update {
                         it.copy(
                             isSubmitting = false,
@@ -281,6 +327,7 @@ class FindItViewModel(
     }
 
     fun userLogout() {
+        cacheManager.clearUserSession()
         _uiState.update { it.copy(userToken = null, currentUser = null) }
     }
 
@@ -306,6 +353,7 @@ class FindItViewModel(
                 alternateContact = alternateContact
             )
                 .onSuccess { resp ->
+                    cacheManager.updateCachedUser(resp.user)
                     _uiState.update {
                         it.copy(
                             isSubmitting = false,
@@ -350,6 +398,7 @@ class FindItViewModel(
                     val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
                     repository.googleLogin(googleCredential.idToken)
                         .onSuccess { resp ->
+                            cacheManager.saveUserSession(resp.token, resp.user)
                             _uiState.update {
                                 it.copy(
                                     isSubmitting = false,
@@ -445,6 +494,7 @@ class FindItViewModel(
             _uiState.update { it.copy(isSubmitting = true, loadingMessage = "Clearing all items...") }
             repository.clearAllItems(token)
                 .onSuccess { resp ->
+                    cacheManager.clearCachedItems()
                     _uiState.update {
                         it.copy(isSubmitting = false, adminStatusMessage = resp.message)
                     }
