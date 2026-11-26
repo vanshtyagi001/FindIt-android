@@ -634,7 +634,9 @@ fun LoadingOverlay(message: String) {
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 CircularProgressIndicator(color = FindItColors.DeepNavy)
@@ -643,7 +645,8 @@ fun LoadingOverlay(message: String) {
                     text = message,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = FindItColors.DeepNavy
+                    color = FindItColors.DeepNavy,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
         }
