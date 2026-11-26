@@ -39,11 +39,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.Notes
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Schedule
@@ -59,6 +57,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -711,7 +710,6 @@ private fun BrowseItemCard(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ItemDetailSheetContent(
     item: ItemDto,
@@ -722,9 +720,10 @@ private fun ItemDetailSheetContent(
     val fullImageUrl = item.imageUrl?.takeIf { it.isNotBlank() }
     val isLost = item.status.equals("lost", ignoreCase = true)
     val ctaColor = if (isLost) FindItColors.RoyalBlue else FindItColors.Terracotta
+    val softAccentBg = if (isLost) Color(0xFFEFF6FF) else Color(0xFFFFF3EE)
 
     var showFullImage by remember { mutableStateOf(false) }
-    var isAiExpanded by remember { mutableStateOf(false) }
+    var isDescExpanded by remember { mutableStateOf(false) }
 
     val (aiSummary, finderNotes) = remember(item.aiDescription) {
         parseDescriptionAndNotes(item.aiDescription)
@@ -744,10 +743,9 @@ private fun ItemDetailSheetContent(
             .verticalScroll(rememberScrollState())
             .windowInsetsPadding(WindowInsets.navigationBars)
             .padding(horizontal = 20.dp)
-            .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(bottom = 22.dp)
     ) {
-        // Photo with zoom hint badge
+        // Photo with subtle circular zoom button
         if (fullImageUrl != null) {
             Box(
                 modifier = Modifier
@@ -766,65 +764,38 @@ private fun ItemDetailSheetContent(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-                Surface(
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.55f),
+                Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(10.dp)
+                        .size(32.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.ZoomIn,
-                            contentDescription = "Inspect full photo",
-                            tint = Color.White,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = "Tap to zoom",
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Outlined.ZoomIn,
+                        contentDescription = "Inspect full photo",
+                        tint = Color.White,
+                        modifier = Modifier.size(17.dp)
+                    )
                 }
             }
+            Spacer(modifier = Modifier.height(14.dp))
         }
 
-        // Category Tag + Status Pill row
+        // Category + Status row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                color = Color(0xFFF1F5F9),
-                shape = CircleShape
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Category,
-                        contentDescription = null,
-                        tint = Color(0xFF475569),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Text(
-                        text = item.itemType,
-                        color = Color(0xFF334155),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
+            Text(
+                text = item.itemType.uppercase(),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp,
+                color = ctaColor
+            )
             Surface(
                 color = if (isLost) FindItColors.LostBg else FindItColors.FoundBg,
                 shape = CircleShape
@@ -839,204 +810,167 @@ private fun ItemDetailSheetContent(
             }
         }
 
+        Spacer(modifier = Modifier.height(4.dp))
+
         // Primary Bold Title
         Text(
             text = primaryTitle,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = FindItColors.DeepNavy
         )
 
-        // Scannable Metadata Pills: Location, Color, Reported Time
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Clean, clutter-free metadata rows with soft colorful icons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .background(softAccentBg, CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.LocationOn,
                         contentDescription = null,
                         tint = ctaColor,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = cleanLocation,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = FindItColors.DeepNavy
+                        modifier = Modifier.size(16.dp)
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = cleanLocation,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = FindItColors.DeepNavy,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
-            item.color?.takeIf { it.isNotBlank() }?.let { colorName ->
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(9.dp)
-                                .clip(CircleShape)
-                                .background(resolveColorSwatch(colorName))
-                        )
-                        Text(
-                            text = colorName,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = FindItColors.DeepNavy
-                        )
-                    }
-                }
-            }
-
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Schedule,
-                        contentDescription = null,
-                        tint = Color(0xFF64748B),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = relativeTime,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF475569)
-                    )
-                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.Schedule,
+                    contentDescription = null,
+                    tint = Color(0xFF94A3B8),
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = relativeTime,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF64748B)
+                )
             }
         }
 
-        // Distinct Finder / Owner Notes Callout Strip
+        item.color?.takeIf { it.isNotBlank() }?.let { colorName ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .background(Color(0xFFF1F5F9), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(11.dp)
+                            .clip(CircleShape)
+                            .background(resolveColorSwatch(colorName))
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = colorName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF475569)
+                )
+            }
+        }
+
+        // Finder / Owner Note (clean soft callout without heavy borders)
         if (!finderNotes.isNullOrBlank()) {
-            val noteBg = if (isLost) Color(0xFFEFF6FF) else Color(0xFFFFF7ED)
-            val noteBorder = if (isLost) Color(0xFFBFDBFE) else Color(0xFFFED7AA)
-            val noteAccent = if (isLost) FindItColors.RoyalBlue else FindItColors.Terracotta
+            Spacer(modifier = Modifier.height(14.dp))
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = noteBg,
-                border = BorderStroke(1.dp, noteBorder)
+                color = softAccentBg
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Notes,
-                            contentDescription = null,
-                            tint = noteAccent,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = if (isLost) "Owner Notes" else "Finder Notes",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = noteAccent
-                        )
-                    }
+                    Text(
+                        text = if (isLost) "Owner Note" else "Finder Note",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ctaColor
+                    )
                     Text(
                         text = finderNotes,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = FindItColors.DeepNavy,
-                        fontWeight = FontWeight.Medium,
-                        lineHeight = 18.sp
+                        lineHeight = 20.sp
                     )
                 }
             }
         }
 
-        // Clamped AI Visual Summary with Gemini Sparkle Icon + Read More Toggle
+        // Clean unboxed description with Read More
         if (!aiSummary.isNullOrBlank()) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                modifier = Modifier.animateContentSize()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.AutoAwesome,
-                            contentDescription = null,
-                            tint = FindItColors.RoyalBlue,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = "AI Visual Summary",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = FindItColors.DeepNavy
-                        )
-                    }
+            Spacer(modifier = Modifier.height(14.dp))
+            HorizontalDivider(color = Color(0xFFF1F5F9))
+            Spacer(modifier = Modifier.height(12.dp))
+            Column(modifier = Modifier.animateContentSize()) {
+                Text(
+                    text = "Item Details",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF64748B)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = aiSummary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF334155),
+                    lineHeight = 19.sp,
+                    maxLines = if (isDescExpanded) Int.MAX_VALUE else 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (aiSummary.length > 130) {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = aiSummary,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF334155),
-                        lineHeight = 19.sp,
-                        maxLines = if (isAiExpanded) Int.MAX_VALUE else 3,
-                        overflow = TextOverflow.Ellipsis
+                        text = if (isDescExpanded) "Show less" else "Read more",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ctaColor,
+                        modifier = Modifier.clickable { isDescExpanded = !isDescExpanded }
                     )
-                    if (aiSummary.length > 130) {
-                        Text(
-                            text = if (isAiExpanded) "Show less" else "Read more",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = FindItColors.RoyalBlue,
-                            modifier = Modifier.clickable { isAiExpanded = !isAiExpanded }
-                        )
-                    }
                 }
             }
         }
 
-        // Action Row: Primary CTA (Terracotta for Found, RoyalBlue for Lost) + Copy Contact Button
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // Action Row: Primary CTA + Copy Contact Button
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 4.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(
                 onClick = onContact,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ctaColor,
                     contentColor = Color.White
@@ -1054,12 +988,11 @@ private fun ItemDetailSheetContent(
             }
 
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFF8FAFC),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                shape = RoundedCornerShape(14.dp),
+                color = Color(0xFFF1F5F9),
                 modifier = Modifier
                     .size(50.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(14.dp))
                     .clickable(onClick = onCopyContact)
             ) {
                 Box(contentAlignment = Alignment.Center) {
