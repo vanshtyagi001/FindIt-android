@@ -150,6 +150,7 @@ fun HomeScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<QuickCategory?>(null) }
     var showQuickActionSheet by remember { mutableStateOf(false) }
+    var selectedActivityItem by remember { mutableStateOf<ItemDto?>(null) }
 
     val filteredItems = remember(uiState.recentFoundItems, searchQuery, selectedCategory) {
         uiState.recentFoundItems.filter { item ->
@@ -347,7 +348,7 @@ fun HomeScreen(
                 ) { item ->
                     RecentActivityCard(
                         item = item,
-                        onClick = onNavigateSearchLost,
+                        onClick = { selectedActivityItem = item },
                         modifier = Modifier
                             .animateItem()
                             .padding(horizontal = 16.dp, vertical = 5.dp)
@@ -426,6 +427,13 @@ fun HomeScreen(
                 )
             }
         }
+    }
+
+    selectedActivityItem?.let { item ->
+        ItemDetailBottomSheet(
+            item = item,
+            onDismiss = { selectedActivityItem = null }
+        )
     }
 }
 

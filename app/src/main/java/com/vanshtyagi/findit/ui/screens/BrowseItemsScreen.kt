@@ -503,30 +503,42 @@ fun BrowseItemsScreen(
 
     // Item Detail Bottom Sheet
     selectedItem?.let { item ->
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        val context = LocalContext.current
-        ModalBottomSheet(
-            onDismissRequest = { selectedItem = null },
-            sheetState = sheetState,
-            containerColor = Color.White
-        ) {
-            ItemDetailSheetContent(
-                item = item,
-                onContact = {
-                    val contact = item.contactInfo.trim()
-                    if (contact.contains("@")) {
-                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$contact"))
+        ItemDetailBottomSheet(
+            item = item,
+            onDismiss = { selectedItem = null }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ItemDetailBottomSheet(
+    item: ItemDto,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val context = LocalContext.current
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.White
+    ) {
+        ItemDetailSheetContent(
+            item = item,
+            onContact = {
+                val contact = item.contactInfo.trim()
+                if (contact.contains("@")) {
+                    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$contact"))
+                    runCatching { context.startActivity(intent) }
+                } else {
+                    val digits = contact.filter { it.isDigit() || it == '+' }
+                    if (digits.length >= 7) {
+                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$digits"))
                         runCatching { context.startActivity(intent) }
-                    } else {
-                        val digits = contact.filter { it.isDigit() || it == '+' }
-                        if (digits.length >= 7) {
-                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$digits"))
-                            runCatching { context.startActivity(intent) }
-                        }
                     }
                 }
-            )
-        }
+            }
+        )
     }
 }
 
