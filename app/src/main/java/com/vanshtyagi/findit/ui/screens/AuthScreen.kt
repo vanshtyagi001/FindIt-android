@@ -336,8 +336,7 @@ fun AuthScreen(
                                         onValueChange = { profAddress = it; profError = null; profSaved = false },
                                         placeholder = { Text("e.g., Hostel Block B Room 204, or Street / Apartment") },
                                         leadingIcon = { Icon(Icons.Outlined.Home, contentDescription = null, tint = iconTint) },
-                                        minLines = 2,
-                                        maxLines = 3,
+                                        singleLine = true,
                                         shape = RoundedCornerShape(12.dp),
                                         colors = fieldColors,
                                         modifier = Modifier.fillMaxWidth()
