@@ -971,7 +971,7 @@ private fun ActionSheetButton(
     }
 }
 
-private fun formatRelativeTime(isoTimestamp: String?): String {
+internal fun formatRelativeTime(isoTimestamp: String?): String {
     if (isoTimestamp.isNullOrBlank()) return "Recently"
     return try {
         val instant = Instant.parse(isoTimestamp)
