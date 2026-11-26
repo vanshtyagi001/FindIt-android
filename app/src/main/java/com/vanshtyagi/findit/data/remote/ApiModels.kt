@@ -40,14 +40,17 @@ data class ItemsListResponse(
 data class ReportFoundResponse(
     val message: String,
     @SerializedName("ai_warning") val aiWarning: String? = null,
-    val item: ItemDto
+    val item: ItemDto,
+    @SerializedName("lost_match_count") val lostMatchCount: Int = 0,
+    @SerializedName("lost_matches") val lostMatches: List<MatchResultDto> = emptyList()
 )
 
 data class SearchLostResponse(
     @SerializedName("search_description") val searchDescription: String,
     @SerializedName("ai_warning") val aiWarning: String? = null,
     @SerializedName("match_count") val matchCount: Int = 0,
-    val matches: List<MatchResultDto> = emptyList()
+    val matches: List<MatchResultDto> = emptyList(),
+    @SerializedName("lost_item") val lostItem: ItemDto? = null
 )
 
 data class MatchResultDto(
@@ -122,6 +125,24 @@ data class GoogleLoginRequest(
 data class MessageResponse(
     val message: String? = null,
     val error: String? = null
+)
+
+data class NotificationDto(
+    val id: Int,
+    @SerializedName("user_id") val userId: Int,
+    @SerializedName("found_item_id") val foundItemId: Int? = null,
+    @SerializedName("lost_item_id") val lostItemId: Int? = null,
+    val title: String,
+    val message: String,
+    val confidence: Double? = null,
+    @SerializedName("is_read") val isRead: Boolean = false,
+    @SerializedName("created_at") val createdAt: String? = null,
+    @SerializedName("found_item") val foundItem: ItemDto? = null
+)
+
+data class NotificationsResponse(
+    val notifications: List<NotificationDto> = emptyList(),
+    @SerializedName("unread_count") val unreadCount: Int = 0
 )
 
 data class ApiErrorResponse(

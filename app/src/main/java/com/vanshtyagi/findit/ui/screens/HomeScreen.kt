@@ -150,6 +150,7 @@ fun HomeScreen(
     onNavigateReportFound: () -> Unit,
     onNavigateSearchLost: () -> Unit,
     onNavigateBrowseAll: () -> Unit,
+    onNavigateNotifications: () -> Unit,
     onNavigateAdmin: () -> Unit,
     onNavigateMyItems: () -> Unit,
     onNavigateMessages: () -> Unit,
@@ -212,9 +213,10 @@ fun HomeScreen(
                     onSearchQueryChange = { searchQuery = it },
                     onLostClick = onNavigateSearchLost,
                     onFoundClick = onNavigateReportFound,
-                    onNotificationClick = onRefresh,
+                    onNotificationClick = onNavigateNotifications,
                     onProfileClick = onNavigateAdmin,
-                    avatarUrl = uiState.currentUser?.avatarUrl
+                    avatarUrl = uiState.currentUser?.avatarUrl,
+                    unreadNotificationCount = uiState.unreadNotificationCount
                 )
             }
 
@@ -463,7 +465,8 @@ private fun HeaderWithOverlappingCards(
     onFoundClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
-    avatarUrl: String? = null
+    avatarUrl: String? = null,
+    unreadNotificationCount: Int = 0
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -510,16 +513,18 @@ private fun HeaderWithOverlappingCards(
                         Box {
                             Icon(
                                 imageVector = Icons.Outlined.Notifications,
-                                contentDescription = "Refresh / Notifications",
+                                contentDescription = "Notifications",
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .align(Alignment.TopEnd)
-                                    .background(FindItColors.Terracotta, CircleShape)
-                            )
+                            if (unreadNotificationCount > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(9.dp)
+                                        .align(Alignment.TopEnd)
+                                        .background(FindItColors.Terracotta, CircleShape)
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.width(6.dp))

@@ -9,6 +9,7 @@ import com.vanshtyagi.findit.data.remote.GoogleLoginRequest
 import com.vanshtyagi.findit.data.remote.HealthResponse
 import com.vanshtyagi.findit.data.remote.ItemsListResponse
 import com.vanshtyagi.findit.data.remote.MessageResponse
+import com.vanshtyagi.findit.data.remote.NotificationsResponse
 import com.vanshtyagi.findit.data.remote.ProfileResponse
 import com.vanshtyagi.findit.data.remote.ReportFoundResponse
 import com.vanshtyagi.findit.data.remote.RetrofitClient
@@ -45,6 +46,7 @@ class FindItRepository(
     }
 
     suspend fun reportFound(
+        token: String?,
         imageFile: File,
         itemType: String,
         location: String,
@@ -59,6 +61,7 @@ class FindItRepository(
             imageFile.asRequestBody(imageJpeg)
         )
         api.reportFound(
+            bearerToken = token?.let { "Bearer $it" },
             itemImage = imagePart,
             itemType = itemType.trim().toRequestBody(textPlain),
             location = location.trim().toRequestBody(textPlain),
@@ -70,6 +73,7 @@ class FindItRepository(
     }
 
     suspend fun searchLost(
+        token: String?,
         imageFile: File,
         itemType: String,
         location: String,
@@ -83,6 +87,7 @@ class FindItRepository(
             imageFile.asRequestBody(imageJpeg)
         )
         api.searchLost(
+            bearerToken = token?.let { "Bearer $it" },
             itemImage = imagePart,
             itemType = itemType.trim().toRequestBody(textPlain),
             location = location.trim().toRequestBody(textPlain),
@@ -134,6 +139,18 @@ class FindItRepository(
 
     suspend fun clearAllItems(token: String): Result<MessageResponse> = safeCall {
         api.clearAllItems("Bearer $token")
+    }
+
+    suspend fun getNotifications(token: String): Result<NotificationsResponse> = safeCall {
+        api.getNotifications("Bearer $token")
+    }
+
+    suspend fun markNotificationRead(token: String, notifId: Int): Result<MessageResponse> = safeCall {
+        api.markNotificationRead("Bearer $token", notifId)
+    }
+
+    suspend fun markAllNotificationsRead(token: String): Result<MessageResponse> = safeCall {
+        api.markAllNotificationsRead("Bearer $token")
     }
 
     private suspend fun <T> safeCall(block: suspend () -> Response<T>): Result<T> {

@@ -30,6 +30,7 @@ interface FindItApiService {
     @Multipart
     @POST("report-found")
     suspend fun reportFound(
+        @Header("Authorization") bearerToken: String? = null,
         @Part itemImage: MultipartBody.Part,
         @Part("item_type") itemType: RequestBody,
         @Part("location") location: RequestBody,
@@ -42,6 +43,7 @@ interface FindItApiService {
     @Multipart
     @POST("search-lost")
     suspend fun searchLost(
+        @Header("Authorization") bearerToken: String? = null,
         @Part itemImage: MultipartBody.Part,
         @Part("item_type") itemType: RequestBody,
         @Part("location") location: RequestBody,
@@ -84,6 +86,22 @@ interface FindItApiService {
 
     @POST("admin/clear-all")
     suspend fun clearAllItems(
+        @Header("Authorization") bearerToken: String
+    ): Response<MessageResponse>
+
+    @GET("notifications")
+    suspend fun getNotifications(
+        @Header("Authorization") bearerToken: String
+    ): Response<NotificationsResponse>
+
+    @POST("notifications/{notifId}/read")
+    suspend fun markNotificationRead(
+        @Header("Authorization") bearerToken: String,
+        @Path("notifId") notifId: Int
+    ): Response<MessageResponse>
+
+    @POST("notifications/read-all")
+    suspend fun markAllNotificationsRead(
         @Header("Authorization") bearerToken: String
     ): Response<MessageResponse>
 }

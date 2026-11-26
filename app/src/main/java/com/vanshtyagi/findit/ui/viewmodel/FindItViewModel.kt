@@ -15,11 +15,15 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.vanshtyagi.findit.BuildConfig
 import com.vanshtyagi.findit.data.local.LocalCacheManager
 import com.vanshtyagi.findit.data.remote.ItemDto
+import com.vanshtyagi.findit.data.remote.MatchResultDto
+import com.vanshtyagi.findit.data.remote.NotificationDto
 import com.vanshtyagi.findit.data.remote.SearchLostResponse
 import com.vanshtyagi.findit.data.remote.UserDto
 import com.vanshtyagi.findit.data.repository.FindItRepository
 import com.vanshtyagi.findit.data.util.ImageUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,7 +51,12 @@ data class FindItUiState(
     val userToken: String? = null,
     val currentUser: UserDto? = null,
     val adminToken: String? = null,
-    val adminStatusMessage: String? = null
+    val adminStatusMessage: String? = null,
+    val notifications: List<NotificationDto> = emptyList(),
+    val unreadNotificationCount: Int = 0,
+    val isLoadingNotifications: Boolean = false,
+    val popupMatchNotification: NotificationDto? = null,
+    val finderMatchedLostItem: MatchResultDto? = null
 ) {
     companion object {
         val DEFAULT_ITEM_TYPES = listOf(
@@ -72,10 +81,23 @@ class FindItViewModel(
 
     private val _uiState = MutableStateFlow(FindItUiState())
     val uiState: StateFlow<FindItUiState> = _uiState.asStateFlow()
+    private val shownPopupNotificationIds = mutableSetOf<Int>()
 
     init {
         hydrateFromCache()
         warmUpAndLoad()
+        startNotificationPolling()
+    }
+
+    private fun startNotificationPolling() {
+        viewModelScope.launch {
+            while (isActive) {
+                delay(30_000L)
+                if (_uiState.value.userToken != null) {
+                    loadNotifications(showPopupIfUnread = true)
+                }
+            }
+        }
     }
 
     private fun hydrateFromCache() {
@@ -95,6 +117,9 @@ class FindItViewModel(
     fun warmUpAndLoad() {
         // Fetch items immediately in parallel with health check (Stale-While-Revalidate).
         loadRecentFoundItems()
+        if (_uiState.value.userToken != null) {
+            loadNotifications(showPopupIfUnread = true)
+        }
         viewModelScope.launch {
             if (_uiState.value.serverStatus != ServerStatus.ONLINE) {
                 _uiState.update { it.copy(serverStatus = ServerStatus.WAKING) }
@@ -208,6 +233,7 @@ class FindItViewModel(
                     ImageUtils.prepareImageForUpload(context, imageUri)
                 }
                 repository.reportFound(
+                    token = _uiState.value.userToken,
                     imageFile = tempFile,
                     itemType = itemType,
                     location = location,
@@ -221,7 +247,8 @@ class FindItViewModel(
                             isSubmitting = false,
                             reportSuccessMessage = resp.aiWarning?.let { w ->
                                 "${resp.message} (Note: $w)"
-                            } ?: resp.message
+                            } ?: resp.message,
+                            finderMatchedLostItem = resp.lostMatches.firstOrNull()
                         )
                     }
                     loadRecentFoundItems()
@@ -272,6 +299,7 @@ class FindItViewModel(
                     ImageUtils.prepareImageForUpload(context, imageUri)
                 }
                 repository.searchLost(
+                    token = _uiState.value.userToken,
                     imageFile = tempFile,
                     itemType = itemType,
                     location = location,
@@ -319,6 +347,7 @@ class FindItViewModel(
                             currentUser = resp.user
                         )
                     }
+                    loadNotifications(showPopupIfUnread = true)
                     onSuccess()
                 }
                 .onFailure { err ->
@@ -347,6 +376,7 @@ class FindItViewModel(
                             currentUser = resp.user
                         )
                     }
+                    loadNotifications(showPopupIfUnread = true)
                     onSuccess()
                 }
                 .onFailure { err ->
@@ -362,7 +392,84 @@ class FindItViewModel(
 
     fun userLogout() {
         cacheManager.clearUserSession()
-        _uiState.update { it.copy(userToken = null, currentUser = null) }
+        shownPopupNotificationIds.clear()
+        _uiState.update {
+            it.copy(
+                userToken = null,
+                currentUser = null,
+                notifications = emptyList(),
+                unreadNotificationCount = 0,
+                popupMatchNotification = null
+            )
+        }
+    }
+
+    fun loadNotifications(showPopupIfUnread: Boolean = false) {
+        val token = _uiState.value.userToken ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingNotifications = it.notifications.isEmpty()) }
+            repository.getNotifications(token)
+                .onSuccess { resp ->
+                    val firstUnread = if (showPopupIfUnread) {
+                        resp.notifications.firstOrNull { !it.isRead && it.id !in shownPopupNotificationIds }
+                    } else null
+                    if (firstUnread != null) {
+                        shownPopupNotificationIds.add(firstUnread.id)
+                    }
+                    _uiState.update {
+                        it.copy(
+                            notifications = resp.notifications,
+                            unreadNotificationCount = resp.unreadCount,
+                            isLoadingNotifications = false,
+                            popupMatchNotification = firstUnread ?: it.popupMatchNotification
+                        )
+                    }
+                }
+                .onFailure {
+                    _uiState.update { it.copy(isLoadingNotifications = false) }
+                }
+        }
+    }
+
+    fun markNotificationRead(notifId: Int) {
+        val token = _uiState.value.userToken ?: return
+        _uiState.update { state ->
+            val updated = state.notifications.map {
+                if (it.id == notifId) it.copy(isRead = true) else it
+            }
+            state.copy(
+                notifications = updated,
+                unreadNotificationCount = updated.count { !it.isRead }
+            )
+        }
+        viewModelScope.launch {
+            repository.markNotificationRead(token, notifId)
+        }
+    }
+
+    fun markAllNotificationsRead() {
+        val token = _uiState.value.userToken ?: return
+        _uiState.update { state ->
+            state.copy(
+                notifications = state.notifications.map { it.copy(isRead = true) },
+                unreadNotificationCount = 0
+            )
+        }
+        viewModelScope.launch {
+            repository.markAllNotificationsRead(token)
+        }
+    }
+
+    fun dismissMatchPopup() {
+        val current = _uiState.value.popupMatchNotification
+        _uiState.update { it.copy(popupMatchNotification = null) }
+        if (current != null && !current.isRead) {
+            markNotificationRead(current.id)
+        }
+    }
+
+    fun dismissFinderMatchPopup() {
+        _uiState.update { it.copy(finderMatchedLostItem = null) }
     }
 
     fun updateProfile(
@@ -440,6 +547,7 @@ class FindItViewModel(
                                     currentUser = resp.user
                                 )
                             }
+                            loadNotifications(showPopupIfUnread = true)
                             onSuccess()
                         }
                         .onFailure { err ->

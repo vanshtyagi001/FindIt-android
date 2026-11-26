@@ -16,18 +16,38 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,10 +65,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.vanshtyagi.findit.data.remote.ItemDto
 import com.vanshtyagi.findit.ui.screens.AdminScreen
 import com.vanshtyagi.findit.ui.screens.AuthScreen
 import com.vanshtyagi.findit.ui.screens.BrowseItemsScreen
 import com.vanshtyagi.findit.ui.screens.HomeScreen
+import com.vanshtyagi.findit.ui.screens.ItemDetailBottomSheet
+import com.vanshtyagi.findit.ui.screens.NotificationsScreen
 import com.vanshtyagi.findit.ui.screens.ReportFoundScreen
 import com.vanshtyagi.findit.ui.screens.ResultsScreen
 import com.vanshtyagi.findit.ui.screens.SearchLostScreen
@@ -61,6 +84,7 @@ private object Routes {
     const val REPORT_FOUND = "report_found"
     const val SEARCH_LOST = "search_lost"
     const val BROWSE_ITEMS = "browse_items"
+    const val NOTIFICATIONS = "notifications"
     const val RESULTS = "results"
     const val AUTH = "auth"
     const val ADMIN = "admin"
@@ -108,6 +132,7 @@ class MainActivity : ComponentActivity() {
                 FindItApp()
             }
         }
+
     }
 }
 
@@ -115,7 +140,9 @@ class MainActivity : ComponentActivity() {
 fun FindItApp(viewModel: FindItViewModel = viewModel()) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val appUiState by viewModel.uiState.collectAsState()
     var pendingRouteAfterAuth by remember { mutableStateOf<String?>(null) }
+    var popupDetailItem by remember { mutableStateOf<ItemDto?>(null) }
 
     fun completeAuthNavigation() {
         val target = pendingRouteAfterAuth
@@ -167,11 +194,22 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
                 },
                 onNavigateSearchLost = {
                     viewModel.clearMessages()
-                    navController.navigate(Routes.SEARCH_LOST)
+                    val state = viewModel.uiState.value
+                    if (state.currentUser == null || state.userToken == null) {
+                        pendingRouteAfterAuth = Routes.SEARCH_LOST
+                        Toast.makeText(context, "Please sign in to report a lost item", Toast.LENGTH_SHORT).show()
+                        navController.navigate(Routes.AUTH)
+                    } else {
+                        navController.navigate(Routes.SEARCH_LOST)
+                    }
                 },
                 onNavigateBrowseAll = {
                     viewModel.clearMessages()
                     navController.navigate(Routes.BROWSE_ITEMS)
+                },
+                onNavigateNotifications = {
+                    viewModel.clearMessages()
+                    navController.navigate(Routes.NOTIFICATIONS)
                 },
                 onNavigateAdmin = {
                     viewModel.clearMessages()
@@ -242,6 +280,18 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
                 uiState = uiState,
                 onBack = { navController.popBackStack() },
                 onRefresh = { viewModel.loadAllItems(forceRefresh = true) }
+            )
+        }
+
+        composable(Routes.NOTIFICATIONS) {
+            val uiState by viewModel.uiState.collectAsState()
+            NotificationsScreen(
+                uiState = uiState,
+                onBack = { navController.popBackStack() },
+                onRefresh = { viewModel.loadNotifications() },
+                onMarkRead = { id -> viewModel.markNotificationRead(id) },
+                onMarkAllRead = { viewModel.markAllNotificationsRead() },
+                onSignInClick = { navController.navigate(Routes.AUTH) }
             )
         }
 
@@ -346,6 +396,177 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
             )
         }
     }
+
+    // Popup Alert: User's lost item matched a newly found item
+    appUiState.popupMatchNotification?.let { notif ->
+        val foundItem = notif.foundItem
+        Dialog(onDismissRequest = { viewModel.dismissMatchPopup() }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                tonalElevation = 6.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .background(FindItColors.FoundBg, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = FindItColors.FoundText,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Item Has Been Found!",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = FindItColors.DeepNavy,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = notif.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF475569),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 19.sp
+                    )
+                    if (foundItem?.imageUrl?.isNotBlank() == true) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(foundItem.imageUrl)
+                                .crossfade(200)
+                                .build(),
+                            contentDescription = foundItem.itemType,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(130.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFF1F5F9))
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(18.dp))
+                    Button(
+                        onClick = {
+                            viewModel.dismissMatchPopup()
+                            if (foundItem != null) {
+                                popupDetailItem = foundItem
+                            } else {
+                                navController.navigate(Routes.NOTIFICATIONS)
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FindItColors.Terracotta,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text("View Found Item", fontWeight = FontWeight.Bold)
+                    }
+                    TextButton(
+                        onClick = { viewModel.dismissMatchPopup() },
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        Text("Dismiss", color = Color(0xFF64748B), fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+
+    // Popup Alert: Finder's newly reported found item matched an existing lost report
+    appUiState.finderMatchedLostItem?.let { match ->
+        val lostItem = match.item
+        Dialog(onDismissRequest = { viewModel.dismissFinderMatchPopup() }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White,
+                tonalElevation = 6.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .background(Color(0xFFEFF6FF), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = FindItColors.RoyalBlue,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Possible Owner Found!",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = FindItColors.DeepNavy,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Someone already reported losing a matching ${lostItem.itemType} near ${lostItem.location}. We've notified them, and you can also view their report.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF475569),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 19.sp
+                    )
+                    Spacer(modifier = Modifier.height(18.dp))
+                    Button(
+                        onClick = {
+                            viewModel.dismissFinderMatchPopup()
+                            popupDetailItem = lostItem
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FindItColors.RoyalBlue,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text("View Lost Report", fontWeight = FontWeight.Bold)
+                    }
+                    TextButton(
+                        onClick = { viewModel.dismissFinderMatchPopup() },
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        Text("Dismiss", color = Color(0xFF64748B), fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+    }
+
+    popupDetailItem?.let { item ->
+        ItemDetailBottomSheet(
+            item = item,
+            onDismiss = { popupDetailItem = null }
+        )
+    }
     }
 }
 
@@ -395,5 +616,6 @@ private fun PlaceholderTabScreen(
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
+
     }
 }
