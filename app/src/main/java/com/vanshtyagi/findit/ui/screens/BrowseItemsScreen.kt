@@ -740,11 +740,17 @@ private fun ItemDetailSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(horizontal = 20.dp)
-            .padding(bottom = 22.dp)
     ) {
+        // Scrollable item details body
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 12.dp)
+        ) {
         // Photo with subtle circular zoom button
         if (fullImageUrl != null) {
             Box(
@@ -959,12 +965,15 @@ private fun ItemDetailSheetContent(
                 }
             }
         }
+        } // End scrollable item details body
 
-        Spacer(modifier = Modifier.height(18.dp))
-
-        // Action Row: Primary CTA + Copy Contact Button
+        // Pinned Action Row above the Android navigation bar
+        HorizontalDivider(color = Color(0xFFF1F5F9))
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(horizontal = 20.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
