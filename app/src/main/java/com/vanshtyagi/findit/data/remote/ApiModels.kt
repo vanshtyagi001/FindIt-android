@@ -18,6 +18,7 @@ data class ThresholdsDto(
 
 data class ItemDto(
     val id: Int,
+    @SerializedName("reference_id") val referenceId: String? = null,
     val status: String,
     @SerializedName("item_type") val itemType: String,
     val color: String? = null,
