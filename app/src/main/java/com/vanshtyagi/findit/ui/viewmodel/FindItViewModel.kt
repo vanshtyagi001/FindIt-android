@@ -34,7 +34,10 @@ data class FindItUiState(
     val serverStatus: ServerStatus = ServerStatus.WAKING,
     val itemTypes: List<String> = DEFAULT_ITEM_TYPES,
     val recentFoundItems: List<ItemDto> = emptyList(),
+    val allItems: List<ItemDto> = emptyList(),
+    val allItemsTotal: Int = 0,
     val isLoadingItems: Boolean = false,
+    val isLoadingAllItems: Boolean = false,
     val isSyncing: Boolean = false,
     val isSubmitting: Boolean = false,
     val loadingMessage: String = "",
@@ -142,6 +145,37 @@ class FindItViewModel(
                             isLoadingItems = false,
                             isSyncing = false,
                             errorMessage = if (hasCached) null else err.message
+                        )
+                    }
+                }
+        }
+    }
+
+    fun loadAllItems(forceRefresh: Boolean = false) {
+        viewModelScope.launch {
+            val currentAll = _uiState.value.allItems
+            val seed = if (currentAll.isEmpty()) _uiState.value.recentFoundItems else currentAll
+            _uiState.update {
+                it.copy(
+                    allItems = seed,
+                    isLoadingAllItems = seed.isEmpty() || forceRefresh
+                )
+            }
+            repository.listItems(status = null, limit = 100)
+                .onSuccess { resp ->
+                    _uiState.update {
+                        it.copy(
+                            allItems = resp.items,
+                            allItemsTotal = resp.total,
+                            isLoadingAllItems = false
+                        )
+                    }
+                }
+                .onFailure { err ->
+                    _uiState.update {
+                        it.copy(
+                            isLoadingAllItems = false,
+                            errorMessage = if (seed.isNotEmpty()) null else err.message
                         )
                     }
                 }

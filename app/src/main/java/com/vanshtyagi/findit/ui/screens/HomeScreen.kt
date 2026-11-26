@@ -141,6 +141,7 @@ fun HomeScreen(
     uiState: FindItUiState,
     onNavigateReportFound: () -> Unit,
     onNavigateSearchLost: () -> Unit,
+    onNavigateBrowseAll: () -> Unit,
     onNavigateAdmin: () -> Unit,
     onNavigateMyItems: () -> Unit,
     onNavigateMessages: () -> Unit,
@@ -277,16 +278,28 @@ fun HomeScreen(
                             )
                         }
                     }
-                    if (selectedCategory != null || searchQuery.isNotBlank()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (selectedCategory != null || searchQuery.isNotBlank()) {
+                            Text(
+                                text = "Clear filter",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = FindItColors.RoyalBlue,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.clickable {
+                                    selectedCategory = null
+                                    searchQuery = ""
+                                }
+                            )
+                        }
                         Text(
-                            text = "Clear filter",
+                            text = "See All",
                             style = MaterialTheme.typography.labelMedium,
                             color = FindItColors.RoyalBlue,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.clickable {
-                                selectedCategory = null
-                                searchQuery = ""
-                            }
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable(onClick = onNavigateBrowseAll)
                         )
                     }
                 }

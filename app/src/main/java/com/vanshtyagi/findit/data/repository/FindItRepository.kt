@@ -35,8 +35,13 @@ class FindItRepository(
         api.getHealth()
     }
 
-    suspend fun listItems(status: String? = "found", limit: Int = 50): Result<ItemsListResponse> = safeCall {
-        api.listItems(status = status, limit = limit)
+    suspend fun listItems(
+        status: String? = "found",
+        itemType: String? = null,
+        limit: Int = 50,
+        offset: Int = 0
+    ): Result<ItemsListResponse> = safeCall {
+        api.listItems(status = status, itemType = itemType, limit = limit, offset = offset)
     }
 
     suspend fun reportFound(

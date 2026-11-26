@@ -43,6 +43,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.vanshtyagi.findit.ui.screens.AdminScreen
 import com.vanshtyagi.findit.ui.screens.AuthScreen
+import com.vanshtyagi.findit.ui.screens.BrowseItemsScreen
 import com.vanshtyagi.findit.ui.screens.HomeScreen
 import com.vanshtyagi.findit.ui.screens.ReportFoundScreen
 import com.vanshtyagi.findit.ui.screens.ResultsScreen
@@ -55,6 +56,7 @@ private object Routes {
     const val HOME = "home"
     const val REPORT_FOUND = "report_found"
     const val SEARCH_LOST = "search_lost"
+    const val BROWSE_ITEMS = "browse_items"
     const val RESULTS = "results"
     const val AUTH = "auth"
     const val ADMIN = "admin"
@@ -143,6 +145,10 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
                     viewModel.clearMessages()
                     navController.navigate(Routes.SEARCH_LOST)
                 },
+                onNavigateBrowseAll = {
+                    viewModel.clearMessages()
+                    navController.navigate(Routes.BROWSE_ITEMS)
+                },
                 onNavigateAdmin = {
                     viewModel.clearMessages()
                     if (viewModel.uiState.value.adminToken != null) {
@@ -203,6 +209,15 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
                         }
                     )
                 }
+            )
+        }
+
+        composable(Routes.BROWSE_ITEMS) {
+            val uiState by viewModel.uiState.collectAsState()
+            BrowseItemsScreen(
+                uiState = uiState,
+                onBack = { navController.popBackStack() },
+                onRefresh = { viewModel.loadAllItems(forceRefresh = true) }
             )
         }
 
