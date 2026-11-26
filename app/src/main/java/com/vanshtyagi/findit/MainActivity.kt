@@ -1,6 +1,7 @@
 package com.vanshtyagi.findit
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -30,6 +31,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -111,6 +115,19 @@ class MainActivity : ComponentActivity() {
 fun FindItApp(viewModel: FindItViewModel = viewModel()) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    var pendingRouteAfterAuth by remember { mutableStateOf<String?>(null) }
+
+    fun completeAuthNavigation() {
+        val target = pendingRouteAfterAuth
+        pendingRouteAfterAuth = null
+        if (target != null) {
+            navController.navigate(target) {
+                popUpTo(Routes.AUTH) { inclusive = true }
+            }
+        } else {
+            navController.popBackStack()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -139,7 +156,14 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
                 uiState = uiState,
                 onNavigateReportFound = {
                     viewModel.clearMessages()
-                    navController.navigate(Routes.REPORT_FOUND)
+                    val state = viewModel.uiState.value
+                    if (state.currentUser == null || state.userToken == null) {
+                        pendingRouteAfterAuth = Routes.REPORT_FOUND
+                        Toast.makeText(context, "Please sign in to report an item", Toast.LENGTH_SHORT).show()
+                        navController.navigate(Routes.AUTH)
+                    } else {
+                        navController.navigate(Routes.REPORT_FOUND)
+                    }
                 },
                 onNavigateSearchLost = {
                     viewModel.clearMessages()
@@ -233,30 +257,38 @@ fun FindItApp(viewModel: FindItViewModel = viewModel()) {
             val uiState by viewModel.uiState.collectAsState()
             AuthScreen(
                 uiState = uiState,
-                onBack = { navController.popBackStack() },
+                onBack = {
+                    pendingRouteAfterAuth = null
+                    navController.popBackStack()
+                },
                 onUserLogin = { email, pass ->
                     viewModel.userLogin(email, pass) {
                         if (viewModel.uiState.value.currentUser?.profileComplete == true) {
-                            navController.popBackStack()
+                            completeAuthNavigation()
                         }
                     }
                 },
                 onUserRegister = { name, email, pass ->
                     viewModel.userRegister(name, email, pass) {
                         if (viewModel.uiState.value.currentUser?.profileComplete == true) {
-                            navController.popBackStack()
+                            completeAuthNavigation()
                         }
                     }
                 },
                 onGoogleSignIn = {
                     viewModel.signInWithGoogle(context) {
                         if (viewModel.uiState.value.currentUser?.profileComplete == true) {
-                            navController.popBackStack()
+                            completeAuthNavigation()
                         }
                     }
                 },
                 onUpdateProfile = { name, phone, address, city, alt, onSaved ->
-                    viewModel.updateProfile(name, phone, address, city, alt, onSaved)
+                    viewModel.updateProfile(name, phone, address, city, alt) {
+                        onSaved()
+                        if (pendingRouteAfterAuth != null) {
+                            completeAuthNavigation()
+                        }
+                    }
                 },
                 onUserLogout = { viewModel.userLogout() },
                 onAdminLogin = { user, pass ->

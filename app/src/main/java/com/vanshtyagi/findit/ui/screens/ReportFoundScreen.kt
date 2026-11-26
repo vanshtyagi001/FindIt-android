@@ -54,7 +54,12 @@ fun ReportFoundScreen(
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var category by remember { mutableStateOf(uiState.itemTypes.firstOrNull() ?: "Electronics") }
     var location by remember { mutableStateOf("") }
-    var contactInfo by remember { mutableStateOf("") }
+    var contactInfo by remember(uiState.currentUser?.id) {
+        mutableStateOf(
+            uiState.currentUser?.phone?.takeIf { it.isNotBlank() }
+                ?: uiState.currentUser?.email.orEmpty()
+        )
+    }
     var description by remember { mutableStateOf("") }
     var color by remember { mutableStateOf("") }
     var brand by remember { mutableStateOf("") }
@@ -73,6 +78,7 @@ fun ReportFoundScreen(
                     onClick = {
                         val uri = imageUri
                         when {
+                            uiState.currentUser == null -> localError = "Please sign in to report an item."
                             uri == null -> localError = "Please select or capture an item photo."
                             location.isBlank() -> localError = "Location Found is required."
                             contactInfo.isBlank() -> localError = "Contact Info is required."
